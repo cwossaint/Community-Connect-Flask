@@ -1,0 +1,71 @@
+<!--
+    This is an HTML template for a Flask application's
+    Sign Up page. It provides two options for the user:
+    signing up as a volunteer or as an organization.
+    The styling is handled using Tailwind CSS for a clean,
+    responsive design consistent with the other pages.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Management System - Sign Up</title>
+    <!-- Include Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font from Google Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header Section -->
+    <header class="bg-emerald-500 text-white p-6 text-center rounded-b-xl shadow-lg">
+        <h1 class="text-4xl font-bold">Volunteer Management System</h1>
+        <p class="mt-2 text-xl font-light">Connecting Volunteers, Organisations, and Events</p>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="bg-gray-800 p-2 text-center shadow-md">
+        <div class="max-w-4xl mx-auto flex justify-center space-x-6">
+            <a href="/" class="text-white hover:text-emerald-300 font-medium transition-colors">Home</a>
+            <a href="/organisations" class="text-white hover:text-emerald-300 font-medium transition-colors">View Organisations</a>
+            <a href="/events" class="text-white hover:text-emerald-300 font-medium transition-colors">View Upcoming Events</a>
+            <a href="/signup" class="text-emerald-300 font-bold transition-colors">Sign Up</a>
+            <a href="/login" class="text-white hover:text-emerald-300 font-medium transition-colors">Log in</a>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="p-8 flex-grow flex items-center justify-center">
+        <div class="max-w-2xl w-full bg-white p-10 rounded-xl shadow-lg border border-gray-200 text-center">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Choose Your Account Type</h2>
+            <p class="text-lg text-gray-600 mb-8">Are you looking to volunteer, or are you an organization seeking volunteers?</p>
+            
+            <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+                <!-- Volunteer Sign-Up Button -->
+                <button onclick="window.location.href='/signup/volunteer'" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 px-8 rounded-lg shadow-md transition-colors transform hover:scale-105">
+                    Sign Up as a Volunteer
+                </button>
+                
+                <!-- Organization Sign-Up Button -->
+                <button onclick="window.location.href='/signup/organisation'" class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-4 px-8 rounded-lg shadow-md transition-colors transform hover:scale-105">
+                    Sign Up as an Organisation
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="bg-gray-800 text-white p-4 text-center mt-auto shadow-inner rounded-t-xl">
+        <p>&copy; 2025 Volunteer Management System</p>
+    </footer>
+
+</body>
+</html>

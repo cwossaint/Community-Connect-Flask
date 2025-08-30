@@ -1,0 +1,245 @@
+<!--
+    This is an HTML template for a Flask application's
+    Events page within the Volunteer Management System.
+    It is adapted from the organizations page template,
+    with content and functionality changed to display events.
+    The styling is handled using Tailwind CSS for a modern and
+    fully responsive design.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Management System - Events</title>
+    <!-- Include Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font from Google Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header Section -->
+    <header class="bg-emerald-500 text-white p-6 text-center rounded-b-xl shadow-lg">
+        <h1 class="text-4xl font-bold">Community Connect: Volunteer Management System</h1>
+        <p class="mt-2 text-xl font-light">Connecting Volunteers, Organisations, and Events</p>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="bg-gray-800 p-2 text-center shadow-md">
+        <div class="max-w-4xl mx-auto flex justify-center space-x-6">
+            <a href="/" class="text-white hover:text-emerald-300 font-medium transition-colors">Home</a>
+            <a href="/organisations" class="text-white hover:text-emerald-300 font-medium transition-colors">View Organisations</a>
+            <a href="/events" class="text-emerald-300 font-bold transition-colors">View Upcoming Events</a>
+            
+            {% if "is_logged_in" in session %}
+                <!-- Volunteer Specific Links -->
+                {% if session["user_type"] == "volunteer" %}
+                    <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">My Signups</a>
+                    <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
+                    <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
+                <!-- Organization Specific Links -->
+                {% elif session["user_type"] == "organisation" %}
+                    <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">Signups</a>
+                    <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
+                    <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
+                {% endif %}
+            {% else %}
+                <!-- Links for non-logged-in users -->
+                <a href="/signup" class="text-white hover:text-emerald-300 font-medium transition-colors">Sign Up</a>
+                <a href="/log_in" class="text-white hover:text-emerald-300 font-medium transition-colors">Log In</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="p-8 flex-grow">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">
+                {% if session["user_type"] == "organisation" %}
+                    Your Events
+                {% else %}
+                    Upcoming Events
+                {% endif %}
+            </h2>
+
+            <section>
+                <!-- Organisation-specific view -->
+                {% if session["user_type"] == "organisation" %}
+                    <div class="text-center mb-6">
+                        <button id="add-event-btn" class="bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-emerald-700 transition-colors shadow-md">
+                            Add New Event
+                        </button>
+                    </div>
+
+                    <!-- Events Grid for Organisations -->
+                    <div id="events-grid-org" class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {% for event in events %}
+                            <div class="event-card bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                                <h3 class="text-xl font-semibold mb-2 text-gray-900">{{ event['Name'] }}</h3>
+                                <p class="text-gray-600 text-sm mb-1">{{ event['Date'] }}</p>
+                                <p class="text-gray-600 truncate">{{ event['Description'] }}</p>
+                                <div class="mt-4 flex justify-end">
+                                    <form action="/events" method="POST">
+                                        <input type="hidden" name="event_id" value="{{ event['Id'] }}">
+                                        <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition-colors">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                <!-- Volunteer-specific view -->
+                {% else %}
+                    <!-- Events Grid with Jinja2 Loop for Volunteers -->
+                    <div id="events-grid-volunteer" class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {% for event in events %}
+                            <div class="event-card bg-white p-6 rounded-xl shadow-lg border border-gray-200 cursor-pointer transition-transform transform hover:scale-105"
+                                data-event-name="{{ event['Name'] }}"
+                                data-event-description="{{ event['Description'] }}"
+                                data-event-date="{{ event['Date'] }}">
+                                <h3 class="text-xl font-semibold mb-2 text-gray-900">{{ event['Name'] }}</h3>
+                                <p class="text-gray-600 text-sm mb-1">{{ event['Date'] }}</p>
+                                <p class="text-gray-600 truncate">{{ event['Description'] }}</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="bg-gray-800 text-white p-4 text-center mt-auto shadow-inner rounded-t-xl">
+        <p>&copy; 2025 Volunteer Management System</p>
+    </footer>
+
+    <!-- Modal Pop-up (hidden by default) -->
+    <div id="modal-backdrop" class="modal-overlay fixed inset-0 flex items-center justify-center z-50 hidden transition-opacity duration-300 opacity-0">
+        <div id="modal-content" class="bg-white p-8 rounded-2xl shadow-2xl max-w-lg w-full transform transition-transform duration-300 scale-95">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modal-title" class="text-2xl font-bold text-gray-900"></h3>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <!-- Modal content will be populated dynamically by JavaScript -->
+            <div id="modal-body" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const modalBackdrop = document.getElementById('modal-backdrop');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            // Function to show the modal
+            function showModal() {
+                modalBackdrop.classList.remove('hidden', 'opacity-0');
+                modalBackdrop.classList.add('flex', 'opacity-100');
+                modalBackdrop.querySelector('#modal-content').classList.remove('scale-95');
+                modalBackdrop.querySelector('#modal-content').classList.add('scale-100');
+            }
+
+            // Function to hide the modal
+            function hideModal() {
+                modalBackdrop.classList.remove('opacity-100');
+                modalBackdrop.classList.add('opacity-0');
+                modalBackdrop.querySelector('#modal-content').classList.remove('scale-100');
+                modalBackdrop.querySelector('#modal-content').classList.add('scale-95');
+
+                setTimeout(() => {
+                    modalBackdrop.classList.remove('flex');
+                    modalBackdrop.classList.add('hidden');
+                    modalBody.innerHTML = ''; // Clear modal content on close
+                }, 300);
+            }
+
+            // Event listeners to close the modal
+            closeModalBtn.addEventListener('click', hideModal);
+            modalBackdrop.addEventListener('click', (e) => {
+                if (e.target.id === 'modal-backdrop') {
+                    hideModal();
+                }
+            });
+
+            // Logic for Organisations
+            const addEventBtn = document.getElementById('add-event-btn');
+            if (addEventBtn) {
+                addEventBtn.addEventListener('click', () => {
+                    modalTitle.textContent = 'Add New Event';
+                    modalBody.innerHTML = `
+                        <form action="/events" method="POST" class="space-y-4">
+                            <div>
+                                <label for="event_name" class="block text-gray-700 font-medium mb-1">Event Name</label>
+                                <input type="text" id="event_name" name="name" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                            </div>
+                            <div>
+                                <label for="event_date" class="block text-gray-700 font-medium mb-1">Date</label>
+                                <input type="date" id="event_date" name="date" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                            </div>
+                            <div>
+                                <label for="event_location" class="block text-gray-700 font-medium mb-1">Location</label>
+                                <input type="text" id="event_location" name="location" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                            </div>
+                            <div>
+                                <label for="event_starttime" class="block text-gray-700 font-medium mb-1">Start Time</label>
+                                <input type="time" id="event_starttime" name="starttime" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                            </div>
+                            <div>
+                                <label for="event_endtime" class="block text-gray-700 font-medium mb-1">End Time</label>
+                                <input type="time" id="event_endtime" name="endtime" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                            </div>
+                            <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-emerald-700 transition-colors shadow-md">
+                                Add Event
+                            </button>
+                        </form>
+                    `;
+                    showModal();
+                });
+            }
+
+            // Logic for Volunteers
+            const eventCards = document.querySelectorAll('.event-card');
+            eventCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    // Check if the clicked card is part of the volunteer view
+                    if (card.closest('#events-grid-volunteer')) {
+                        const eventName = card.getAttribute('data-event-name');
+                        const eventDescription = card.getAttribute('data-event-description');
+                        const eventDate = card.getAttribute('data-event-date');
+                        
+                        modalTitle.textContent = eventName;
+                        modalBody.innerHTML = `
+                            <div>
+                                <p class="text-gray-600 font-semibold">Description:</p>
+                                <p id="modal-event-description" class="mt-1 text-gray-700">${eventDescription}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600 font-semibold">Date:</p>
+                                <p id="modal-event-date" class="mt-1 text-gray-700">${eventDate}</p>
+                            </div>
+                        `;
+                        showModal();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

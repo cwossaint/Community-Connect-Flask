@@ -1,0 +1,100 @@
+<!--
+    This is an HTML template for a Flask application's
+    Volunteer Sign Up page. It provides a form for users
+    to register as a volunteer. The styling is handled using
+    Tailwind CSS for a clean, responsive design consistent
+    with the other pages.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Management System - Volunteer Sign Up</title>
+    <!-- Include Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font from Google Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header Section -->
+    <header class="bg-emerald-500 text-white p-6 text-center rounded-b-xl shadow-lg">
+        <h1 class="text-4xl font-bold">Volunteer Management System</h1>
+        <p class="mt-2 text-xl font-light">Connecting Volunteers, Organisations, and Events</p>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="bg-gray-800 p-2 text-center shadow-md">
+        <div class="max-w-4xl mx-auto flex justify-center space-x-6">
+            <a href="/" class="text-white hover:text-emerald-300 font-medium transition-colors">Home</a>
+            <a href="/organisations" class="text-white hover:text-emerald-300 font-medium transition-colors">View Organisations</a>
+            <a href="/events" class="text-white hover:text-emerald-300 font-medium transition-colors">View Upcoming Events</a>
+            <a href="/sign_up" class="text-emerald-300 font-bold transition-colors">Sign Up</a>
+            <a href="/login" class="text-white hover:text-emerald-300 font-medium transition-colors">Log in</a>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="p-8 flex-grow flex items-center justify-center">
+        <div class="max-w-md w-full bg-white p-10 rounded-xl shadow-lg border border-gray-200">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Volunteer Registration</h2>
+            <form action="/sign_up/volunteer" method="POST" class="space-y-6">
+                <!-- First Name -->
+                <div>
+                    <label for="first_name" class="block text-sm font-medium text-gray-700">First Name</label>
+                    <input type="text" id="first_name" name="first_name" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+                <!-- Last Name -->
+                <div>
+                    <label for="last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+                <!-- Email -->
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+                    <input type="email" id="email" name="email" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+                <!-- Password -->
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" id="password" name="password" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+                <!-- Birthdate -->
+                <div>
+                    <label for="birthdate" class="block text-sm font-medium text-gray-700">Date of Birth</label>
+                    <input type="date" id="birthdate" name="birthdate" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+                <!-- Phone Number -->
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+                <!-- Location -->
+                <div>
+                    <label for="location" class="block text-sm font-medium text-gray-700">Location</label>
+                    <input type="text" id="location" name="location" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+                
+                <!-- Submit Button -->
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg shadow-md transition-colors">
+                    Register
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="bg-gray-800 text-white p-4 text-center mt-auto shadow-inner rounded-t-xl">
+        <p>&copy; 2025 Volunteer Management System</p>
+    </footer>
+
+</body>
+</html>

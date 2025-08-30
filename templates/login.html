@@ -1,0 +1,78 @@
+<!--
+    This is an HTML template for a Flask application's
+    Log In page. It provides a form for users to sign in
+    with their email and password. The styling is handled
+    using Tailwind CSS for a clean, responsive design
+    consistent with the other pages.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Management System - Log In</title>
+    <!-- Include Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font from Google Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header Section -->
+    <header class="bg-emerald-500 text-white p-6 text-center rounded-b-xl shadow-lg">
+        <h1 class="text-4xl font-bold">Volunteer Management System</h1>
+        <p class="mt-2 text-xl font-light">Connecting Volunteers, Organisations, and Events</p>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="bg-gray-800 p-2 text-center shadow-md">
+        <div class="max-w-4xl mx-auto flex justify-center space-x-6">
+            <a href="/" class="text-white hover:text-emerald-300 font-medium transition-colors">Home</a>
+            <a href="/organisations" class="text-white hover:text-emerald-300 font-medium transition-colors">View Organisations</a>
+            <a href="/events" class="text-white hover:text-emerald-300 font-medium transition-colors">View Upcoming Events</a>
+            <a href="/sign_up" class="text-white hover:text-emerald-300 font-medium transition-colors">Sign Up</a>
+            <a href="/login" class="text-emerald-300 font-bold transition-colors">Log In</a>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="p-8 flex-grow flex items-center justify-center">
+        <div class="max-w-md w-full bg-white p-10 rounded-xl shadow-lg border border-gray-200">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Log In to Your Account</h2>
+            <form action="/login" method="POST" class="space-y-6">
+                <!-- Email -->
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+                    <input type="email" id="email" name="email" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+                <!-- Password -->
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" id="password" name="password" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500">
+                </div>
+                
+                <!-- Submit Button -->
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-lg shadow-md transition-colors">
+                    Log In
+                </button>
+            </form>
+            <div class="mt-6 text-center text-sm">
+                <p class="text-gray-600">Don't have an account? <a href="/sign_up" class="font-medium text-emerald-600 hover:underline">Sign up here</a>.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="bg-gray-800 text-white p-4 text-center mt-auto shadow-inner rounded-t-xl">
+        <p>&copy; 2025 Volunteer Management System</p>
+    </footer>
+
+</body>
+</html>
