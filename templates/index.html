@@ -41,12 +41,12 @@
             {% if session["user_type"] %}
                 <!-- Volunteer Specific Links -->
                 {% if session["user_type"] == "volunteer" %}
-                    <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">My Signups</a>
+                    <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">View My Signups</a>
                     <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
                     <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
                 <!-- Organization Specific Links -->
                 {% elif session["user_type"] == "organisation" %}
-                    <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">Signups</a>
+                    <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">Manage Signups</a>
                     <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
                     <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
                 {% endif %}
@@ -79,7 +79,7 @@
                 <h2 class="text-3xl font-bold text-gray-800">
                     Welcome to the Volunteer Management System
                 </h2>
-                <p class="mt-2 text-gray-600">Please sign in or sign up to manage your account and find events.</p>
+                <p class="mt-2 text-gray-600">Please sign in or sign up volunteer.</p>
             </div>
         {% endif %}
 

@@ -26,6 +26,15 @@
             background-color: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(4px);
         }
+        .notification {
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -86,12 +95,16 @@
                     <!-- Events Grid for Organisations -->
                     <div id="events-grid-org" class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {% for event in events %}
-                            <div class="event-card bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                            <div class="event-card bg-white p-6 rounded-xl shadow-lg border border-gray-200 cursor-pointer"
+                                data-event-id="{{ event['Id'] }}"
+                                data-event-name="{{ event['Name'] }}"
+                                data-event-description="{{ event['Description'] }}"
+                                data-event-date="{{ event['Date'] }}">
                                 <h3 class="text-xl font-semibold mb-2 text-gray-900">{{ event['Name'] }}</h3>
                                 <p class="text-gray-600 text-sm mb-1">{{ event['Date'] }}</p>
                                 <p class="text-gray-600 truncate">{{ event['Description'] }}</p>
                                 <div class="mt-4 flex justify-end">
-                                    <form action="/events" method="POST">
+                                    <form action="/events" method="POST" class="delete-form">
                                         <input type="hidden" name="event_id" value="{{ event['Id'] }}">
                                         <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition-colors">
                                             Delete
@@ -108,6 +121,7 @@
                     <div id="events-grid-volunteer" class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {% for event in events %}
                             <div class="event-card bg-white p-6 rounded-xl shadow-lg border border-gray-200 cursor-pointer transition-transform transform hover:scale-105"
+                                data-event-id="{{ event['Id'] }}"
                                 data-event-name="{{ event['Name'] }}"
                                 data-event-description="{{ event['Description'] }}"
                                 data-event-date="{{ event['Date'] }}">
@@ -140,15 +154,27 @@
             <div id="modal-body" class="space-y-4"></div>
         </div>
     </div>
+    
+    <!-- Notification Pop-up (hidden by default) -->
+    <div id="registration-notification" class="notification fixed bottom-4 right-4 bg-gray-800 text-white py-3 px-6 rounded-lg shadow-xl z-50">
+        <p id="notification-text"></p>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Get references to DOM elements
             const modalBackdrop = document.getElementById('modal-backdrop');
             const closeModalBtn = document.getElementById('close-modal-btn');
             const modalTitle = document.getElementById('modal-title');
             const modalBody = document.getElementById('modal-body');
+            const notification = document.getElementById('registration-notification');
+            const notificationText = document.getElementById('notification-text');
+            const userType = "{{ session.get('user_type', 'none') }}"; // Get user type from Flask session
 
-            // Function to show the modal
+            // FIX: This line was missing. It's needed to get a reference to the button.
+            const addEventBtn = document.getElementById('add-event-btn');
+
+            // Function to show the main modal
             function showModal() {
                 modalBackdrop.classList.remove('hidden', 'opacity-0');
                 modalBackdrop.classList.add('flex', 'opacity-100');
@@ -156,7 +182,7 @@
                 modalBackdrop.querySelector('#modal-content').classList.add('scale-100');
             }
 
-            // Function to hide the modal
+            // Function to hide the main modal
             function hideModal() {
                 modalBackdrop.classList.remove('opacity-100');
                 modalBackdrop.classList.add('opacity-0');
@@ -170,6 +196,15 @@
                 }, 300);
             }
 
+            // Function to show a temporary notification
+            function showNotification(message) {
+                notificationText.textContent = message;
+                notification.classList.add('show');
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000); // Notification disappears after 3 seconds
+            }
+
             // Event listeners to close the modal
             closeModalBtn.addEventListener('click', hideModal);
             modalBackdrop.addEventListener('click', (e) => {
@@ -178,13 +213,320 @@
                 }
             });
 
-            // Logic for Organisations
-            const addEventBtn = document.getElementById('add-event-btn');
+            /**
+             * Fetches and renders the latest events for the organization.
+             * This function is crucial for providing real-time updates without a page reload.
+             */
+            async function renderOrgEvents() {
+                try {
+                    const response = await fetch('/get_org_events');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch events.');
+                    }
+                    const events = await response.json();
+                    const eventsGrid = document.getElementById('events-grid-org');
+                    eventsGrid.innerHTML = ''; // Clear existing content
+
+                    if (events.length > 0) {
+                        events.forEach(event => {
+                            const eventCard = document.createElement('div');
+                            eventCard.className = "event-card bg-white p-6 rounded-xl shadow-lg border border-gray-200 cursor-pointer";
+                            eventCard.dataset.eventId = event.Id;
+                            eventCard.dataset.eventName = event.Name;
+                            eventCard.dataset.eventDescription = event.Description;
+                            eventCard.dataset.eventDate = event.Date;
+
+                            // Construct the inner HTML
+                            eventCard.innerHTML = `
+                                <h3 class="text-xl font-semibold mb-2 text-gray-900">${event.Name}</h3>
+                                <p class="text-gray-600 text-sm mb-1">${event.Date}</p>
+                                <p class="text-gray-600 truncate">${event.Description}</p>
+                                <div class="mt-4 flex justify-end">
+                                    <form action="/events" method="POST" class="delete-form">
+                                        <input type="hidden" name="event_id" value="${event.Id}">
+                                        <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition-colors">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            `;
+                            eventsGrid.appendChild(eventCard);
+                        });
+                        // Re-attach listeners to the new cards
+                        attachCardListeners();
+                    } else {
+                        eventsGrid.innerHTML = `<p class="text-gray-500 text-center col-span-full">No events have been created yet.</p>`;
+                    }
+                } catch (error) {
+                    console.error("Error fetching and rendering events:", error);
+                }
+            }
+            
+            // Function to attach click listeners to event cards and delete forms
+            function attachCardListeners() {
+                document.querySelectorAll('.event-card').forEach(card => {
+                    card.addEventListener('click', handleCardClick);
+                });
+                document.querySelectorAll('.delete-form').forEach(form => {
+                    form.addEventListener('submit', handleFormSubmit);
+                });
+            }
+
+            // Logic for all event cards
+            async function handleCardClick() {
+                const eventId = this.getAttribute('data-event-id');
+                const eventName = this.getAttribute('data-event-name');
+                const eventDescription = this.getAttribute('data-event-description');
+                const eventDate = this.getAttribute('data-event-date');
+                
+                if (userType === 'organisation') {
+                    // Organization's event management pop-up
+                    modalTitle.textContent = `Manage ${eventName}`;
+                    modalBody.innerHTML = `
+                        <form id="edit-event-form" class="space-y-4 mb-4">
+                            <input type="hidden" name="event_id" value="${eventId}">
+                            <div>
+                                <label for="event_description" class="block text-gray-700 font-medium mb-1">Edit Description</label>
+                                <textarea id="event_description" name="description" rows="4" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500">${eventDescription}</textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-emerald-700 transition-colors shadow-md">
+                                Save Changes
+                            </button>
+                        </form>
+                        
+                        <hr class="my-4 border-gray-300">
+
+                        <div class="mt-4">
+                            <h4 class="text-xl font-bold text-gray-900 mb-2">Existing Roles</h4>
+                            <div id="existing-roles-list" class="space-y-4">
+                                <p class="text-gray-500 text-sm">Loading roles...</p>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4 border-gray-300">
+
+                        <button id="add-role-btn" class="w-full bg-gray-800 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors shadow-md">
+                            Add Event Role
+                        </button>
+                    `;
+                    showModal();
+
+                    // Add event listener for the edit description form
+                    document.getElementById('edit-event-form').addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.target);
+                        try {
+                            const response = await fetch('/edit_event', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            if (response.ok) {
+                                showNotification('Event description updated!');
+                                hideModal();
+                                renderOrgEvents(); // Rerender the events grid after a successful update
+                            } else {
+                                console.error('Failed to update event.');
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                        }
+                    });
+                    
+                    // Fetch and display roles for the organization
+                    try {
+                        const rolesResponse = await fetch(`/get_org_event_roles?event_id=${eventId}`);
+                        if (rolesResponse.ok) {
+                            const roles = await rolesResponse.json();
+                            const rolesList = document.getElementById('existing-roles-list');
+                            rolesList.innerHTML = ''; // Clear the loading message
+                            if (roles.length > 0) {
+                                roles.forEach(role => {
+                                    const roleHtml = `
+                                        <div class="bg-gray-100 p-4 rounded-lg shadow-inner">
+                                            <h5 class="font-semibold text-gray-900">${role.name}</h5>
+                                            <p class="text-sm text-gray-600">${role.description}</p>
+                                        </div>
+                                    `;
+                                    rolesList.innerHTML += roleHtml;
+                                });
+                            } else {
+                                rolesList.innerHTML = `<p class="text-gray-500 text-sm">No roles have been added yet.</p>`;
+                            }
+                        } else {
+                            console.error('Failed to load event roles.');
+                        }
+                    } catch (error) {
+                        console.error('Error fetching roles:', error);
+                    }
+
+                    // Add event listener for the "Add Event Role" button
+                    document.getElementById('add-role-btn').addEventListener('click', () => {
+                        modalTitle.textContent = `Add Role to ${eventName}`;
+                        modalBody.innerHTML = `
+                            <form id="add-role-form" class="space-y-4">
+                                <input type="hidden" name="event_id" value="${eventId}">
+                                <div>
+                                    <label for="role_name" class="block text-gray-700 font-medium mb-1">Role Name</label>
+                                    <input type="text" id="role_name" name="role_name" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                                </div>
+                                <div>
+                                    <label for="role_description" class="block text-gray-700 font-medium mb-1">Role Description</label>
+                                    <textarea id="role_description" name="role_description" rows="3" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required></textarea>
+                                </div>
+                                <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-emerald-700 transition-colors shadow-md">
+                                    Add Role
+                                </button>
+                            </form>
+                        `;
+                        // Add event listener for the new form
+                        document.getElementById('add-role-form').addEventListener('submit', async (e) => {
+                            e.preventDefault();
+                            const formData = new FormData(e.target);
+                            try {
+                                const response = await fetch('/add_event_role', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                if (response.ok) {
+                                    showNotification(`Role "${formData.get('role_name')}" added!`);
+                                    hideModal();
+                                } else {
+                                    console.error('Failed to add role.');
+                                }
+                            } catch (error) {
+                                console.error('Error:', error);
+                            }
+                        });
+                    });
+
+                } else if (userType === 'volunteer') {
+                    // Volunteer's event details pop-up
+                    modalTitle.textContent = eventName;
+                    modalBody.innerHTML = `
+                        <div>
+                            <p class="text-gray-600 font-semibold">Description:</p>
+                            <p class="mt-1 text-gray-700">${eventDescription}</p>
+                        </div>
+                        <div class="mt-4">
+                            <p class="text-gray-600 font-semibold">Date:</p>
+                            <p class="mt-1 text-gray-700">${eventDate}</p>
+                        </div>
+                        <div class="mt-4">
+                            <h4 class="text-xl font-bold text-gray-900 mb-2">Available Roles</h4>
+                            <div id="roles-list" class="space-y-4">
+                                <p class="text-gray-500 text-sm">Loading roles...</p>
+                            </div>
+                        </div>
+                    `;
+                    showModal();
+
+                    // Fetch and display roles for the volunteer
+                    try {
+                        const rolesResponse = await fetch(`/get_event_roles?event_id=${eventId}`);
+                        if (rolesResponse.ok) {
+                            const roles = await rolesResponse.json();
+                            const rolesList = document.getElementById('roles-list');
+                            rolesList.innerHTML = '';
+                            if (roles.length > 0) {
+                                roles.forEach(role => {
+                                    let actionButton;
+
+                                    // Check the volunteer's signup status for this role
+                                    if (role.signup_status === 'Pending') {
+                                        actionButton = `<span class="px-4 py-2 rounded-lg text-sm bg-blue-500 text-white cursor-not-allowed">Pending</span>`;
+                                    } else if (role.signup_status === 'Confirmed') {
+                                        actionButton = `<span class="px-4 py-2 rounded-lg text-sm bg-green-600 text-white cursor-not-allowed">Confirmed</span>`;
+                                    } else if (role.signup_status === 'Rejected') {
+                                        actionButton = `<span class="px-4 py-2 rounded-lg text-sm bg-red-500 text-white cursor-not-allowed">Rejected</span>`;
+                                    } else {
+                                        actionButton = `<button class="register-role-btn bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors" data-role-id="${role.id}" data-role-name="${role.name}">Sign Up</button>`;
+                                    }
+
+                                    const roleHtml = `
+                                        <div class="bg-gray-100 p-4 rounded-lg shadow-inner flex justify-between items-center">
+                                            <div>
+                                                <h5 class="font-semibold text-gray-900">${role.name}</h5>
+                                                <p class="text-sm text-gray-600">${role.description}</p>
+                                            </div>
+                                            ${actionButton}
+                                        </div>
+                                    `;
+                                    rolesList.innerHTML += roleHtml;
+                                });
+
+                                // Add event listeners only to the new "Sign Up" buttons
+                                document.querySelectorAll('.register-role-btn').forEach(btn => {
+                                    btn.addEventListener('click', async () => {
+                                        const roleId = btn.getAttribute('data-role-id');
+                                        const roleName = btn.getAttribute('data-role-name');
+                                        
+                                        const formData = new FormData();
+                                        formData.append('role_id', roleId);
+                                        
+                                        try {
+                                            const response = await fetch('/register_for_role', {
+                                                method: 'POST',
+                                                body: formData,
+                                            });
+                                            if (response.ok) {
+                                                showNotification(`Signed up for "${roleName}"!`);
+                                                hideModal();
+                                            } else {
+                                                console.error('Registration failed.');
+                                            }
+                                        } catch (error) {
+                                            console.error('Error:', error);
+                                        }
+                                    });
+                                });
+                            } else {
+                                rolesList.innerHTML = `<p class="text-gray-500 text-sm">No roles available for this event yet.</p>`;
+                            }
+                        } else {
+                            console.error('Failed to load event roles.');
+                        }
+                    } catch (error) {
+                        console.error('Error fetching roles:', error);
+                    }
+                }
+            }
+            
+            // Logic to handle form submissions for delete events
+            async function handleFormSubmit(e) {
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+                
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    
+                    if (response.ok) {
+                        showNotification('Event deleted successfully!');
+                        // Remove the event card from the DOM
+                        const eventCard = form.closest('.event-card');
+                        if (eventCard) {
+                            eventCard.remove();
+                        }
+                    } else {
+                        const errorText = await response.text();
+                        console.error('Failed to delete event:', errorText);
+                        showNotification('Failed to delete event.');
+                    }
+                } catch (error) {
+                    console.error('Error deleting event:', error);
+                    showNotification('Error deleting event.');
+                }
+            }
+
+            // New logic to handle the add event form submission
             if (addEventBtn) {
                 addEventBtn.addEventListener('click', () => {
                     modalTitle.textContent = 'Add New Event';
                     modalBody.innerHTML = `
-                        <form action="/events" method="POST" class="space-y-4">
+                        <form id="add-event-form" class="space-y-4">
                             <div>
                                 <label for="event_name" class="block text-gray-700 font-medium mb-1">Event Name</label>
                                 <input type="text" id="event_name" name="name" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
@@ -211,34 +553,32 @@
                         </form>
                     `;
                     showModal();
+
+                    // Event listener for the new form
+                    document.getElementById('add-event-form').addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.target);
+                        try {
+                            const response = await fetch('/add_event', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            if (response.ok) {
+                                showNotification('Event added successfully!');
+                                hideModal();
+                                renderOrgEvents();
+                            } else {
+                                console.error('Failed to add event.');
+                            }
+                        } catch (error) {
+                            console.error('Error:', error);
+                        }
+                    });
                 });
             }
-
-            // Logic for Volunteers
-            const eventCards = document.querySelectorAll('.event-card');
-            eventCards.forEach(card => {
-                card.addEventListener('click', () => {
-                    // Check if the clicked card is part of the volunteer view
-                    if (card.closest('#events-grid-volunteer')) {
-                        const eventName = card.getAttribute('data-event-name');
-                        const eventDescription = card.getAttribute('data-event-description');
-                        const eventDate = card.getAttribute('data-event-date');
-                        
-                        modalTitle.textContent = eventName;
-                        modalBody.innerHTML = `
-                            <div>
-                                <p class="text-gray-600 font-semibold">Description:</p>
-                                <p id="modal-event-description" class="mt-1 text-gray-700">${eventDescription}</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-600 font-semibold">Date:</p>
-                                <p id="modal-event-date" class="mt-1 text-gray-700">${eventDate}</p>
-                            </div>
-                        `;
-                        showModal();
-                    }
-                });
-            });
+            
+            // Call the function to attach listeners on initial load
+            attachCardListeners();
         });
     </script>
 </body>

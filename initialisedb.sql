@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS Events (
 CREATE TABLE IF NOT EXISTS EventRoles (
     ID INTEGER PRIMARY KEY,
     EventID INTEGER NOT NULL,
-    SkillID INTEGER NOT NULL,
+    SkillID INTEGER,
     Name TEXT NOT NULL CHECK(length(Name) <= 30),
     Description TEXT CHECK(length(Description) <= 300),
     VolunteersNeeded INTEGER,

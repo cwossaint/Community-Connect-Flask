@@ -1,4 +1,4 @@
-from flask import Flask, render_template, g, request, redirect, url_for, session
+from flask import Flask, render_template, g, request, redirect, url_for, session, flash, jsonify
 import sqlite3
 
 # --- CONFIG ---
@@ -36,44 +36,142 @@ def organisations():
 def events():
     db = get_db()
 
-    # Handle POST requests
     if request.method == "POST":
-        if "user_type" not in session or session["user_type"] != "organisation":
-            # Only organisations should be able to add/delete events
-            return redirect(url_for("events"))
+        user_type = session.get("user_type")
+        if user_type == "organisation":
+            event_id = request.form.get("event_id")
+            if event_id:
+                db.execute("DELETE FROM Events WHERE Id = ?", (event_id,))
+                db.commit()
+                flash("Event deleted.", "info")
+        return redirect(url_for("events"))
 
-        # Case 1: Delete event
-        if "event_id" in request.form:
-            event_id = request.form["event_id"]
-            db.execute("DELETE FROM Events WHERE Id = ?", (event_id,))
-            db.commit()
-            return redirect(url_for("events"))
-
-        # Case 2: Add new event
-        elif "name" in request.form:
-            name = request.form["name"]
-            date = request.form["date"]
-            location = request.form["location"]
-            starttime = request.form["starttime"]
-            endtime = request.form["endtime"]
-
-            # Make sure session has organisation id
-            organisation_id = session.get("user_id")
-
-            db.execute(
-                """
-                INSERT INTO Events (Name, Date, Location, StartTime, EndTime, OrganisationID, Description)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (name, date, location, starttime, endtime, organisation_id, request.form.get("description", ""))
-            )
-            db.commit()
-            return redirect(url_for("events"))
-
-    # Handle GET requests — always fetch updated events list
     cur = db.execute("SELECT * FROM Events ORDER BY Date ASC")
     events = cur.fetchall()
     return render_template("events.html", events=events)
+
+
+# ------------------- ADD EVENT ------------------- #
+@app.route("/add_event", methods=["POST"])
+def add_event():
+    if session.get("user_type") != "organisation":
+        return "Unauthorized", 401
+
+    db = get_db()
+    db.execute(
+        """INSERT INTO Events (Name, Date, Location, StartTime, EndTime, OrganisationID, Description)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (
+            request.form["name"],
+            request.form["date"],
+            request.form["location"],
+            request.form["starttime"],
+            request.form["endtime"],
+            session["user_id"],
+            request.form.get("description", "")
+        ),
+    )
+    db.commit()
+    return "OK", 200
+
+
+# ------------------- EDIT EVENT ------------------- #
+@app.route("/edit_event", methods=["POST"])
+def edit_event():
+    if session.get("user_type") != "organisation":
+        return "Unauthorized", 401
+
+    db = get_db()
+    event_id = request.form["event_id"]
+    desc = request.form["description"]
+    db.execute("UPDATE Events SET Description = ? WHERE Id = ?", (desc, event_id))
+    db.commit()
+    return "OK", 200
+
+
+# ------------------- ADD EVENT ROLE ------------------- #
+@app.route("/add_event_role", methods=["POST"])
+def add_event_role():
+    if session.get("user_type") != "organisation":
+        return "Unauthorized", 401
+
+    db = get_db()
+    event_id = request.form["event_id"]
+    role_name = request.form["role_name"]
+    role_desc = request.form["role_description"]
+    db.execute(
+        "INSERT INTO EventRoles (EventID, Name, Description) VALUES (?, ?, ?)",
+        (event_id, role_name, role_desc),
+    )
+    db.commit()
+    return "OK", 200
+
+
+# ------------------- GET EVENT ROLES ------------------- #
+@app.route("/get_event_roles", methods=["GET"])
+def get_event_roles():
+    db = get_db()
+    user_type = session.get("user_type")
+
+    if user_type == "volunteer":
+        event_id = request.args.get("event_id")
+        volunteer_id = session.get("user_id")
+        
+        # Get all roles for the event
+        cur = db.execute("SELECT ID, Name, Description FROM EventRoles WHERE EventID = ?", (event_id,))
+        roles = [{"id": r["ID"], "name": r["Name"], "description": r["Description"]} for r in cur.fetchall()]
+
+        # Check signup status for each role
+        for role in roles:
+            signup_status = db.execute(
+                "SELECT Status FROM Signups WHERE VolunteerID = ? AND RoleID = ?",
+                (volunteer_id, role["id"])
+            ).fetchone()
+            if signup_status:
+                role["signup_status"] = signup_status["Status"]
+        
+        return jsonify(roles)
+
+    return ("Unauthorized", 401)
+
+@app.route("/get_org_event_roles", methods=["GET"])
+def get_org_event_roles():
+    if session.get("user_type") != "organisation":
+        return "Unauthorized", 401
+
+    db = get_db()
+    event_id = request.args.get("event_id")
+
+    # Fetch roles for the event
+    cur = db.execute(
+        "SELECT ID, Name, Description FROM EventRoles WHERE EventID = ?", (event_id,)
+    )
+    roles = [{"id": r["ID"], "name": r["Name"], "description": r["Description"]} for r in cur.fetchall()]
+
+    return jsonify(roles)
+
+# ------------------- REGISTER FOR ROLE ------------------- #
+@app.route("/register_for_role", methods=["POST"])
+def register_for_role():
+    if session.get("user_type") != "volunteer":
+        return "Unauthorized", 401
+
+    db = get_db()
+    role_id = request.form["role_id"]
+
+    cur = db.execute(
+        "SELECT * FROM Signups WHERE VolunteerID = ? AND RoleID = ?",
+        (session["user_id"], role_id),
+    )
+    if cur.fetchone():
+        return "Already signed up", 400
+
+    db.execute(
+        "INSERT INTO Signups (VolunteerID, RoleID, Status) VALUES (?, ?, 'Pending')",
+        (session["user_id"], role_id),
+    )
+    db.commit()
+    return "OK", 200
 
 @app.route("/signup")
 def signup():
