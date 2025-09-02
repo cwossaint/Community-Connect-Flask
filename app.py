@@ -50,7 +50,6 @@ def events():
     events = cur.fetchall()
     return render_template("events.html", events=events)
 
-
 # ------------------- ADD EVENT ------------------- #
 @app.route("/add_event", methods=["POST"])
 def add_event():
@@ -74,7 +73,6 @@ def add_event():
     db.commit()
     return "OK", 200
 
-
 # ------------------- EDIT EVENT ------------------- #
 @app.route("/edit_event", methods=["POST"])
 def edit_event():
@@ -87,7 +85,6 @@ def edit_event():
     db.execute("UPDATE Events SET Description = ? WHERE Id = ?", (desc, event_id))
     db.commit()
     return "OK", 200
-
 
 # ------------------- ADD EVENT ROLE ------------------- #
 @app.route("/add_event_role", methods=["POST"])
@@ -105,7 +102,6 @@ def add_event_role():
     )
     db.commit()
     return "OK", 200
-
 
 # ------------------- GET EVENT ROLES ------------------- #
 @app.route("/get_event_roles", methods=["GET"])
@@ -272,11 +268,88 @@ def edit_profile():
 
     return render_template('edit_profile.html', user=user)
 
+@app.route('/view_signups')
+def view_signups():
+    """
+    Handles the logic for the signups page, returning different views
+    based on the user type.
+    """
+    user_type = session.get('user_type')
+    if not user_type:
+        return redirect(url_for('login', user_type='volunteer'))
+
+    db = get_db()
+    user_id = session.get('user_id')
+    signups = []
+
+    if user_type == "volunteer":
+        # SQL query to get all signups for the current volunteer.
+        query = """
+            SELECT s.id, s.status,
+                   e.Name AS event_name, e.Date AS event_date,
+                   o.Name AS organisation_name,
+                   r.Name AS role_name
+            FROM Signups s
+            JOIN EventRoles r ON s.roleID = r.id
+            JOIN Events e ON r.EventID = e.id
+            JOIN Organisations o ON e.organisationID = o.id
+            WHERE s.volunteerID = ?
+            ORDER BY e.Date ASC;
+        """
+        signups = db.execute(query, (user_id,)).fetchall()
+
+    elif user_type == "organisation":
+        # Use organisation's ID directly
+        org_id = user_id
+        query = """
+            SELECT s.id, s.status,
+                   v.FirstName || ' ' || v.LastName AS volunteer_name,
+                   e.Name AS event_name,
+                   r.Name AS role_name
+            FROM Signups s
+            JOIN EventRoles r ON s.roleID = r.id
+            JOIN Events e ON r.eventID = e.id
+            JOIN Volunteers v ON s.volunteerID = v.id
+            WHERE e.organisationID = ? AND s.status = 'Pending'
+            ORDER BY e.Date ASC;
+        """
+        signups = db.execute(query, (org_id,)).fetchall()
+
+    return render_template('view_signups.html', signups=signups, session=session)
+
+@app.route('/update_signup_status', methods=['POST'])
+def update_signup_status():
+    """
+    Handles the AJAX request to update a signup's status.
+    """
+    user_type = session.get('user_type')
+    if user_type != 'organisation':
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    db = get_db()
+    signup_id = request.form.get('signup_id', type=int)
+    status = request.form.get('status')
+
+    if signup_id is None or status not in ["Accepted", "Rejected"]:
+        return jsonify({'error': 'Invalid request data'}), 400
+
+    try:
+        db.execute(
+            "UPDATE Signups SET status = ? WHERE id = ?",
+            (status, signup_id)
+        )
+        db.commit()
+        return jsonify({'success': True, 'message': f'Signup {signup_id} updated to {status}'})
+    except sqlite3.Error as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
     session.clear()
     return render_template('index.html')
+
+
 
 # --- RUN APP ---
 if __name__ == "__main__":

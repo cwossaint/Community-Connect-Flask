@@ -52,15 +52,15 @@
             <a href="/organisations" class="text-white hover:text-emerald-300 font-medium transition-colors">View Organisations</a>
             <a href="/events" class="text-emerald-300 font-bold transition-colors">View Upcoming Events</a>
             
-            {% if "is_logged_in" in session %}
+            {% if session["user_type"] %}
                 <!-- Volunteer Specific Links -->
                 {% if session["user_type"] == "volunteer" %}
-                    <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">My Signups</a>
+                    <a href="/view_signups" class="text-white hover:text-emerald-300 font-medium transition-colors">My Signups</a>
                     <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
                     <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
                 <!-- Organization Specific Links -->
                 {% elif session["user_type"] == "organisation" %}
-                    <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">Signups</a>
+                    <a href="/view_signups" class="text-white hover:text-emerald-300 font-medium transition-colors">Signups</a>
                     <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
                     <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
                 {% endif %}
@@ -171,7 +171,6 @@
             const notificationText = document.getElementById('notification-text');
             const userType = "{{ session.get('user_type', 'none') }}"; // Get user type from Flask session
 
-            // FIX: This line was missing. It's needed to get a reference to the button.
             const addEventBtn = document.getElementById('add-event-btn');
 
             // Function to show the main modal
@@ -261,6 +260,37 @@
                     console.error("Error fetching and rendering events:", error);
                 }
             }
+
+            // New helper function to fetch and display roles inside the modal
+            async function fetchAndRenderRoles(eventId) {
+                try {
+                    const rolesResponse = await fetch(`/get_org_event_roles?event_id=${eventId}`);
+                    if (rolesResponse.ok) {
+                        const roles = await rolesResponse.json();
+                        const rolesList = document.getElementById('existing-roles-list');
+                        if (rolesList) {
+                            rolesList.innerHTML = ''; // Clear the loading message
+                            if (roles.length > 0) {
+                                roles.forEach(role => {
+                                    const roleHtml = `
+                                        <div class="bg-gray-100 p-4 rounded-lg shadow-inner">
+                                            <h5 class="font-semibold text-gray-900">${role.name}</h5>
+                                            <p class="text-sm text-gray-600">${role.description}</p>
+                                        </div>
+                                    `;
+                                    rolesList.innerHTML += roleHtml;
+                                });
+                            } else {
+                                rolesList.innerHTML = `<p class="text-gray-500 text-sm">No roles have been added yet.</p>`;
+                            }
+                        }
+                    } else {
+                        console.error('Failed to load event roles.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching roles:', error);
+                }
+            }
             
             // Function to attach click listeners to event cards and delete forms
             function attachCardListeners() {
@@ -311,6 +341,9 @@
                     `;
                     showModal();
 
+                    // Initial fetch and display of roles
+                    fetchAndRenderRoles(eventId);
+
                     // Add event listener for the edit description form
                     document.getElementById('edit-event-form').addEventListener('submit', async (e) => {
                         e.preventDefault();
@@ -332,33 +365,6 @@
                         }
                     });
                     
-                    // Fetch and display roles for the organization
-                    try {
-                        const rolesResponse = await fetch(`/get_org_event_roles?event_id=${eventId}`);
-                        if (rolesResponse.ok) {
-                            const roles = await rolesResponse.json();
-                            const rolesList = document.getElementById('existing-roles-list');
-                            rolesList.innerHTML = ''; // Clear the loading message
-                            if (roles.length > 0) {
-                                roles.forEach(role => {
-                                    const roleHtml = `
-                                        <div class="bg-gray-100 p-4 rounded-lg shadow-inner">
-                                            <h5 class="font-semibold text-gray-900">${role.name}</h5>
-                                            <p class="text-sm text-gray-600">${role.description}</p>
-                                        </div>
-                                    `;
-                                    rolesList.innerHTML += roleHtml;
-                                });
-                            } else {
-                                rolesList.innerHTML = `<p class="text-gray-500 text-sm">No roles have been added yet.</p>`;
-                            }
-                        } else {
-                            console.error('Failed to load event roles.');
-                        }
-                    } catch (error) {
-                        console.error('Error fetching roles:', error);
-                    }
-
                     // Add event listener for the "Add Event Role" button
                     document.getElementById('add-role-btn').addEventListener('click', () => {
                         modalTitle.textContent = `Add Role to ${eventName}`;
@@ -389,7 +395,9 @@
                                 });
                                 if (response.ok) {
                                     showNotification(`Role "${formData.get('role_name')}" added!`);
-                                    hideModal();
+                                    e.target.reset(); // Clear form fields for next entry
+                                    // Re-render the roles list within the modal
+                                    fetchAndRenderRoles(eventId);
                                 } else {
                                     console.error('Failed to add role.');
                                 }
@@ -547,14 +555,17 @@
                                 <label for="event_endtime" class="block text-gray-700 font-medium mb-1">End Time</label>
                                 <input type="time" id="event_endtime" name="endtime" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
                             </div>
+                            <div>
+                                <label for="event_description" class="block text-gray-700 font-medium mb-1">Description</label>
+                                <textarea id="event_description" name="description" rows="4" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required></textarea>
+                            </div>
                             <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-emerald-700 transition-colors shadow-md">
                                 Add Event
                             </button>
                         </form>
                     `;
                     showModal();
-
-                    // Event listener for the new form
+                    // Add event listener for the new form
                     document.getElementById('add-event-form').addEventListener('submit', async (e) => {
                         e.preventDefault();
                         const formData = new FormData(e.target);
@@ -564,9 +575,9 @@
                                 body: formData
                             });
                             if (response.ok) {
-                                showNotification('Event added successfully!');
+                                showNotification('Event added!');
                                 hideModal();
-                                renderOrgEvents();
+                                renderOrgEvents(); // Rerender the events grid after a successful update
                             } else {
                                 console.error('Failed to add event.');
                             }
@@ -576,8 +587,8 @@
                     });
                 });
             }
-            
-            // Call the function to attach listeners on initial load
+
+            // Initial call to attach listeners to existing cards
             attachCardListeners();
         });
     </script>
