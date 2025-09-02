@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS Signups (
     ID INTEGER PRIMARY KEY,
     VolunteerID INTEGER NOT NULL,
     RoleID INTEGER NOT NULL,
-    Status TEXT NOT NULL CHECK(Status IN ('Pending', 'Confirmed', 'Denied')),
+    Status TEXT NOT NULL CHECK(Status IN ('Pending', 'Accepted', 'Rejected')),
     FOREIGN KEY (VolunteerID) REFERENCES Volunteers(ID) ON DELETE CASCADE,
     FOREIGN KEY (RoleID) REFERENCES EventRoles(ID) ON DELETE CASCADE
 );

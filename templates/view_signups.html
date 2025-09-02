@@ -1,17 +1,14 @@
 <!--
-    This is an HTML template for a Flask application's
-    Signups page within the Volunteer Management System.
-    It is designed to be a single, conditional template
-    that serves both volunteer and organisation accounts.
-    The styling is handled using Tailwind CSS for a modern and
-    fully responsive design.
+    This is the HTML template for the 'View Signups' page.
+    It displays signups differently based on whether the user is a volunteer or an organization.
+    The styling is done using Tailwind CSS for a clean, responsive design.
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Volunteer Management System - Signups</title>
+    <title>Volunteer Management System - View Signups</title>
     <!-- Include Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Use Inter font from Google Fonts -->
@@ -22,18 +19,20 @@
             background-color: #f3f4f6;
             color: #1f2937;
         }
-        .modal-overlay {
-            background-color: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-        }
         .notification {
-            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
-            transform: translateY(100%);
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            transform: translateY(20px);
             opacity: 0;
+            pointer-events: none;
         }
         .notification.show {
             transform: translateY(0);
             opacity: 1;
+            pointer-events: auto;
         }
     </style>
 </head>
@@ -41,7 +40,7 @@
 
     <!-- Header Section -->
     <header class="bg-emerald-500 text-white p-6 text-center rounded-b-xl shadow-lg">
-        <h1 class="text-4xl font-bold">Community Connect: Volunteer Management System</h1>
+        <h1 class="text-4xl font-bold">Volunteer Management System</h1>
         <p class="mt-2 text-xl font-light">Connecting Volunteers, Organisations, and Events</p>
     </header>
 
@@ -52,7 +51,8 @@
             <a href="/organisations" class="text-white hover:text-emerald-300 font-medium transition-colors">View Organisations</a>
             <a href="/events" class="text-white hover:text-emerald-300 font-medium transition-colors">View Upcoming Events</a>
             
-            {% if session["user_type"] in session %}
+            <!-- Conditional Navigation based on login status and user type -->
+            {% if session["user_type"] %}
                 <!-- Volunteer Specific Links -->
                 {% if session["user_type"] == "volunteer" %}
                     <a href="/view_signups" class="text-emerald-300 font-bold transition-colors">View Signups</a>
@@ -67,7 +67,7 @@
             {% else %}
                 <!-- Links for non-logged-in users -->
                 <a href="/signup" class="text-white hover:text-emerald-300 font-medium transition-colors">Sign Up</a>
-                <a href="/log_in" class="text-white hover:text-emerald-300 font-medium transition-colors">Log In</a>
+                <a href="/login" class="text-white hover:text-emerald-300 font-medium transition-colors">Log In</a>
             {% endif %}
         </div>
     </nav>
@@ -75,84 +75,49 @@
     <!-- Main Content Area -->
     <main class="p-8 flex-grow">
         <div class="max-w-6xl mx-auto">
-            {% if session["user_type"] == "volunteer" %}
-                <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">My Current Signups</h2>
-            
-                <section>
-                    <div id="volunteer-signups-grid" class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {% if signups|length > 0 %}
-                            {% for signup in signups %}
-                                <div class="signup-card bg-white p-6 rounded-xl shadow-lg border border-gray-200"
-                                    data-event-name="{{ signup['event_name'] }}"
-                                    data-event-date="{{ signup['event_date'] }}"
-                                    data-organisation-name="{{ signup['organisation_name'] }}"
-                                    data-role-name="{{ signup['role_name'] }}"
-                                    data-status="{{ signup['status'] }}">
-                                    <h3 class="text-xl font-semibold mb-2 text-gray-900">{{ signup['event_name'] }}</h3>
-                                    <p class="text-gray-600 text-sm mb-1">
-                                        <span class="font-semibold">Organisation:</span> {{ signup['organisation_name'] }}
-                                    </p>
-                                    <p class="text-gray-600 text-sm mb-1">
-                                        <span class="font-semibold">Role:</span> {{ signup['role_name'] }}
-                                    </p>
-                                    <p class="text-gray-600 text-sm mb-4">
-                                        <span class="font-semibold">Date:</span> {{ signup['event_date'] }}
-                                    </p>
-                                    <div class="mt-4 flex justify-end">
-                                        {% if signup['status'] == 'Pending' %}
-                                            <span class="inline-block bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">Pending</span>
-                                        {% elif signup['status'] == 'Accepted' %}
-                                            <span class="inline-block bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full">Accepted</span>
-                                        {% elif signup['status'] == 'Rejected' %}
-                                            <span class="inline-block bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">Rejected</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        {% else %}
-                            <p class="text-gray-500 text-center col-span-full">You have not signed up for any events yet.</p>
-                        {% endif %}
-                    </div>
-                </section>
+            <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">
+                {% if session["user_type"] == "volunteer" %}
+                    My Event Signups
+                {% else %}
+                    Pending Volunteer Signups
+                {% endif %}
+            </h2>
 
-            {% elif session["user_type"] == "organisation" %}
-                <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Volunteer Signups for Your Events</h2>
-
-                <section>
-                    <div id="organisation-signups-grid" class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {% if signups|length > 0 %}
-                            {% for signup in signups %}
-                                <div class="signup-card bg-white p-6 rounded-xl shadow-lg border border-gray-200" data-signup-id="{{ signup['id'] }}">
-                                    <h3 class="text-xl font-semibold mb-2 text-gray-900">{{ signup['volunteer_name'] }}</h3>
-                                    <p class="text-gray-600 text-sm mb-1">
-                                        <span class="font-semibold">Event:</span> {{ signup['event_name'] }}
-                                    </p>
-                                    <p class="text-gray-600 text-sm mb-4">
-                                        <span class="font-semibold">Role:</span> {{ signup['role_name'] }}
-                                    </p>
-                                    <div class="flex space-x-2 mt-4">
-                                        <form class="action-form w-1/2">
-                                            <input type="hidden" name="signup_id" value="{{ signup['id'] }}">
-                                            <input type="hidden" name="status" value="Accepted">
-                                            <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-emerald-700 transition-colors shadow-md text-sm">
-                                                Accept
-                                            </button>
-                                        </form>
-                                        <form class="action-form w-1/2">
-                                            <input type="hidden" name="signup_id" value="{{ signup['id'] }}">
-                                            <input type="hidden" name="status" value="Rejected">
-                                            <button type="submit" class="w-full bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors shadow-md text-sm">
-                                                Reject
-                                            </button>
-                                        </form>
-                                    </div>
+            {% if signups %}
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {% for signup in signups %}
+                            <div class="bg-gray-50 p-6 rounded-xl shadow-md border border-gray-100 flex flex-col justify-between" data-signup-id="{{ signup.id }}">
+                                <div class="mb-4">
+                                    {% if session["user_type"] == "volunteer" %}
+                                        <p class="text-sm font-semibold text-gray-500">Event: <span class="text-gray-800">{{ signup.event_name }}</span></p>
+                                        <p class="text-sm font-semibold text-gray-500">Organization: <span class="text-gray-800">{{ signup.organisation_name }}</span></p>
+                                        <p class="text-sm font-semibold text-gray-500">Role: <span class="text-gray-800">{{ signup.role_name }}</span></p>
+                                        <p class="text-sm font-semibold text-gray-500">Status: <span class="font-bold text-blue-600">{{ signup.status }}</span></p>
+                                    {% elif session["user_type"] == "organisation" %}
+                                        <p class="text-sm font-semibold text-gray-500">Volunteer: <span class="text-gray-800">{{ signup.volunteer_name }}</span></p>
+                                        <p class="text-sm font-semibold text-gray-500">Event: <span class="text-gray-800">{{ signup.event_name }}</span></p>
+                                        <p class="text-sm font-semibold text-gray-500">Role: <span class="text-gray-800">{{ signup.role_name }}</span></p>
+                                    {% endif %}
                                 </div>
-                            {% endfor %}
-                        {% else %}
-                            <p class="text-gray-500 text-center col-span-full">No volunteers have signed up for your events yet.</p>
-                        {% endif %}
+                                {% if session["user_type"] == "organisation" %}
+                                    <div class="flex space-x-2 mt-auto">
+                                        <button class="accept-btn w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-colors">
+                                            Accept
+                                        </button>
+                                        <button class="reject-btn w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-colors">
+                                            Reject
+                                        </button>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
                     </div>
-                </section>
+                </div>
+            {% else %}
+                <div class="text-center p-8 bg-white rounded-xl shadow-md border border-gray-200">
+                    <p class="text-lg text-gray-600">No signups to display.</p>
+                </div>
             {% endif %}
         </div>
     </main>
@@ -162,61 +127,87 @@
         <p>&copy; 2025 Volunteer Management System</p>
     </footer>
 
-    <!-- Notification Pop-up (hidden by default) -->
-    <div id="notification" class="notification fixed bottom-4 right-4 bg-gray-800 text-white py-3 px-6 rounded-lg shadow-xl z-50">
-        <p id="notification-text"></p>
+    <!-- Notification Pop-up -->
+    <div id="notification-pop-up" class="notification fixed bottom-4 right-4 p-4 rounded-lg shadow-xl text-white font-medium flex items-center space-x-2">
+        <p id="notification-message"></p>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const notification = document.getElementById('notification');
-            const notificationText = document.getElementById('notification-text');
+            const acceptButtons = document.querySelectorAll('.accept-btn');
+            const rejectButtons = document.querySelectorAll('.reject-btn');
+            const notification = document.getElementById('notification-pop-up');
+            const notificationMessage = document.getElementById('notification-message');
 
-            // Function to show a temporary notification
-            function showNotification(message) {
-                notificationText.textContent = message;
+            const showNotification = (message, isSuccess = true) => {
+                notificationMessage.textContent = message;
+                // Set the background color based on success or error
+                if (isSuccess) {
+                    notification.classList.remove('bg-red-500');
+                    notification.classList.add('bg-emerald-500');
+                } else {
+                    notification.classList.remove('bg-emerald-500');
+                    notification.classList.add('bg-red-500');
+                }
                 notification.classList.add('show');
+                
+                // Hide the notification after 3 seconds
                 setTimeout(() => {
                     notification.classList.remove('show');
-                }, 3000); // Notification disappears after 3 seconds
-            }
+                }, 3000);
+            };
 
-            // Only run this code for organization accounts
-            if ("{{ session.get('user_type', 'none') }}" === 'organisation') {
-                document.querySelectorAll('.action-form').forEach(form => {
-                    form.addEventListener('submit', async (e) => {
-                        e.preventDefault();
-                        const formData = new FormData(e.target);
-                        const signupId = formData.get('signup_id');
-                        const status = formData.get('status');
+            const handleUpdate = async (button, status) => {
+                const signupCard = button.closest('[data-signup-id]');
+                const signupId = signupCard.getAttribute('data-signup-id');
 
-                        try {
-                            const response = await fetch('/update_signup_status', {
-                                method: 'POST',
-                                body: formData,
-                            });
-                            
-                            if (response.ok) {
-                                showNotification(`Signup for ID ${signupId} has been ${status.toLowerCase()}!`);
-                                
-                                // Find the parent card and remove it from the DOM
-                                const signupCard = e.target.closest('.signup-card');
-                                if (signupCard) {
-                                    signupCard.remove();
-                                }
-                            } else {
-                                const errorText = await response.text();
-                                console.error('Failed to update signup status:', errorText);
-                                showNotification('Failed to update signup.');
-                            }
-                        } catch (error) {
-                            console.error('Error updating signup status:', error);
-                            showNotification('Error updating signup.');
-                        }
+                if (!signupId) {
+                    console.error('Signup ID not found.');
+                    showNotification('Error: Could not find signup ID.', false);
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/update_signup_status', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            signup_id: parseInt(signupId),
+                            status: status
+                        })
                     });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // On success, visually remove the card from the page
+                        signupCard.remove();
+                        showNotification('Signup status updated successfully!', true);
+                    } else {
+                        console.error('Error updating signup status:', data.error);
+                        showNotification('Error: ' + data.error, false);
+                    }
+                } catch (error) {
+                    console.error('Network error:', error);
+                    showNotification('Network error occurred.', false);
+                }
+            };
+
+            acceptButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    handleUpdate(button, 'Accepted');
                 });
-            }
+            });
+
+            rejectButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    handleUpdate(button, 'Rejected');
+                });
+            });
         });
     </script>
+
 </body>
 </html>

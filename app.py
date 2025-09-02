@@ -321,17 +321,22 @@ def view_signups():
 def update_signup_status():
     """
     Handles the AJAX request to update a signup's status.
+    It now expects a JSON payload.
     """
-    user_type = session.get('user_type')
-    if user_type != 'organisation':
+    # Check if the user is an organization and logged in
+    if session.get('user_type') != 'organisation' or not session.get('user_type'):
         return jsonify({'error': 'Unauthorized'}), 401
 
     db = get_db()
-    signup_id = request.form.get('signup_id', type=int)
-    status = request.form.get('status')
+    
+    # Read data from the JSON body
+    data = request.json
+    signup_id = data.get('signup_id')
+    status = data.get('status')
 
+    # Basic input validation
     if signup_id is None or status not in ["Accepted", "Rejected"]:
-        return jsonify({'error': 'Invalid request data'}), 400
+        return jsonify({'error': 'Invalid request data. Missing or invalid signup_id or status.'}), 400
 
     try:
         db.execute(
@@ -342,6 +347,8 @@ def update_signup_status():
         return jsonify({'success': True, 'message': f'Signup {signup_id} updated to {status}'})
     except sqlite3.Error as e:
         return jsonify({'error': str(e)}), 500
+
+
 
 
 @app.route('/logout', methods=['GET', 'POST'])
