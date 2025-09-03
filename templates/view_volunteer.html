@@ -1,0 +1,109 @@
+<!--
+    This template displays a specific volunteer's profile.
+    It includes their personal information, skills, bio, and contribution statistics.
+    Data is meant to be dynamically populated from the backend.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Profile</title>
+    <!-- Include Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font from Google Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header Section -->
+    <header class="bg-emerald-500 text-white p-6 text-center rounded-b-xl shadow-lg">
+        <h1 class="text-4xl font-bold">Community Connect: Volunteer Management System</h1>
+        <p class="mt-2 text-xl font-light">Connecting Volunteers, Organisations, and Events</p>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="bg-gray-800 p-2 text-center shadow-md">
+        <div class="max-w-4xl mx-auto flex justify-center space-x-6">
+            <a href="/" class="text-white hover:text-emerald-300 font-medium transition-colors">Home</a>
+            <a href="/organisations" class="text-white hover:text-emerald-300 font-medium transition-colors">View Organisations</a>
+            <a href="/events" class="text-white hover:text-emerald-300 font-medium transition-colors">View Upcoming Events</a>
+            
+            <!-- Conditional Navigation based on user type -->
+            {% if session["user_type"] == "volunteer" %}
+                <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">My Signups</a>
+                <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
+                <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
+            {% elif session["user_type"] == "organisation" %}
+                <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">Signups</a>
+                <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
+                <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="p-8 flex-grow flex flex-col items-center">
+        <div class="max-w-2xl w-full bg-white p-10 rounded-2xl shadow-xl border border-gray-200">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">{{ volunteer.full_name }}'s Profile</h2>
+            
+            <div class="space-y-6">
+                <!-- Contact Info -->
+                <div class="border border-gray-200 rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-2">Contact Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-800">
+                        <div><strong class="font-medium text-gray-600">Email:</strong> {{ volunteer.email }}</div>
+                        <div><strong class="font-medium text-gray-600">Phone:</strong> {{ volunteer.phone_number }}</div>
+                    </div>
+                </div>
+
+                <!-- Personal Info & Statistics -->
+                <div class="border border-gray-200 rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-2">Personal Details & Contributions</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-800">
+                        <div><strong class="font-medium text-gray-600">Birthdate:</strong> {{ volunteer.birthdate }}</div>
+                        <div><strong class="font-medium text-gray-600">Age:</strong> {{ volunteer.age }} years old</div>
+                        <div><strong class="font-medium text-gray-600">Total Hours:</strong> {{ volunteer.total_hours }}</div>
+                    </div>
+                </div>
+
+                <!-- Bio -->
+                <div class="border border-gray-200 rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-2">Bio</h3>
+                    <p class="text-gray-800">{{ volunteer.bio }}</p>
+                </div>
+
+                <!-- Skills -->
+                <div class="border border-gray-200 rounded-xl p-6 transition-shadow duration-200 hover:shadow-lg">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-2">Skills</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {% for skill in volunteer.skills %}
+                            <span class="bg-emerald-100 text-emerald-800 text-sm font-medium px-2.5 py-0.5 rounded-full">{{ skill }}</span>
+                        {% else %}
+                            <span class="text-gray-500">No skills listed.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 text-center">
+                <a href="{{ url_for('view_signups') }}" class="text-blue-500 hover:underline font-semibold">
+                    ← Back to Signups
+                </a>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Footer Section -->
+    <footer class="bg-gray-800 text-white p-4 text-center mt-auto shadow-inner rounded-t-xl">
+        <p>&copy; 2025 Volunteer Management System</p>
+    </footer>
+</body>
+</html>

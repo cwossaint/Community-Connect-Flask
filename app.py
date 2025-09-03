@@ -1,4 +1,5 @@
 from flask import Flask, render_template, g, request, redirect, url_for, session, flash, jsonify
+from datetime import date, datetime, timedelta
 import sqlite3
 
 # --- CONFIG ---
@@ -420,9 +421,11 @@ def view_signups():
     elif user_type == "organisation":
         # Use organisation's ID directly
         org_id = user_id
+        # NOTE: Added the volunteer's ID (v.id) to the select statement to enable linking
         query = """
             SELECT s.id, s.status,
                    v.FirstName || ' ' || v.LastName AS volunteer_name,
+                   v.Id AS volunteerID,
                    e.Name AS event_name,
                    r.Name AS role_name
             FROM Signups s
@@ -435,6 +438,58 @@ def view_signups():
         signups = db.execute(query, (org_id,)).fetchall()
 
     return render_template('view_signups.html', signups=signups, session=session)
+
+@app.route('/volunteers')
+def volunteers():
+    """Displays a list of all volunteers."""
+    conn = get_db()
+    volunteers = conn.execute("SELECT * FROM Users").fetchall()
+    conn.close()
+    return render_template('volunteers.html', volunteers=volunteers)
+
+@app.route("/volunteer/<int:volunteer_id>")
+def view_volunteer(volunteer_id):
+    db = get_db()
+
+    # 1. Fetch volunteer's primary information
+    volunteer_cur = db.execute("""
+        SELECT FirstName, LastName, Email, PhoneNumber, BirthDate, Bio
+        FROM Volunteers
+        WHERE Id = ?
+    """, (volunteer_id,))
+    volunteer_data = volunteer_cur.fetchone()
+
+    if not volunteer_data:
+        flash("Volunteer not found.", "danger")
+        return redirect(url_for('volunteers'))
+
+    # 2. Fetch volunteer's skills
+    skills_cur = db.execute("""
+        SELECT s.Name
+        FROM VolunteerSkills vs
+        JOIN Skills s ON vs.SkillID = s.Id
+        WHERE vs.VolunteerID = ?
+    """, (volunteer_id,))
+    skills = [s['Name'] for s in skills_cur.fetchall()]
+
+    # 3. Calculate age from birthdate
+    # NOTE: The age calculation has been re-added as requested
+    birthdate = datetime.strptime(volunteer_data['BirthDate'], '%Y-%m-%d').date()
+    today = date.today()
+    age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+
+    # Prepare data to send to the template
+    volunteer = {
+        'full_name': f"{volunteer_data['FirstName']} {volunteer_data['LastName']}",
+        'email': volunteer_data['Email'],
+        'phone_number': volunteer_data['PhoneNumber'],
+        'birthdate': volunteer_data['BirthDate'],
+        'bio': volunteer_data['Bio'] if volunteer_data['Bio'] else 'No bio provided.',
+        'skills': skills,
+        'age': age
+    }
+
+    return render_template('view_volunteer.html', volunteer=volunteer)
 
 @app.route('/update_signup_status', methods=['POST'])
 def update_signup_status():
@@ -471,8 +526,6 @@ def update_signup_status():
 def logout():
     session.clear()
     return render_template('index.html')
-
-
 
 # --- RUN APP ---
 if __name__ == "__main__":

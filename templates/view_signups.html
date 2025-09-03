@@ -1,21 +1,17 @@
 <!--
-    This is the HTML template for the 'signups' page.
-    It displays volunteer signups for a logged-in user.
-    The page now dynamically changes the view based on the user's role:
-    - Organizations see separate sections for pending and accepted signups.
-    - Volunteers see a single list of all their signups.
-    The page is styled using Tailwind CSS and the navigation bar is
-    now conditional, consistent with the rest of the application.
+    This HTML template displays a user's signups.
+    It shows different information and functionality based on whether the user
+    is a volunteer or an organization.
+    - Organizations can view all signups for their events.
+    - Volunteers can view their own signups.
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Volunteer Management System - Signups</title>
-    <!-- Include Tailwind CSS via CDN -->
+    <title>View Signups</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Use Inter font from Google Fonts -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <style>
         body {
@@ -23,9 +19,22 @@
             background-color: #f3f4f6;
             color: #1f2937;
         }
-        .modal-overlay {
-            background-color: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
+        .signup-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .signup-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        .table-header th {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 2px solid #e5e7eb;
+            background-color: #f9fafb;
+        }
+        .table-row td {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
         }
     </style>
 </head>
@@ -33,7 +42,7 @@
 
     <!-- Header Section -->
     <header class="bg-emerald-500 text-white p-6 text-center rounded-b-xl shadow-lg">
-        <h1 class="text-4xl font-bold">Volunteer Management System</h1>
+        <h1 class="text-4xl font-bold">Community Connect: Volunteer Management System</h1>
         <p class="mt-2 text-xl font-light">Connecting Volunteers, Organisations, and Events</p>
     </header>
 
@@ -43,136 +52,111 @@
             <a href="/" class="text-white hover:text-emerald-300 font-medium transition-colors">Home</a>
             <a href="/organisations" class="text-white hover:text-emerald-300 font-medium transition-colors">View Organisations</a>
             <a href="/events" class="text-white hover:text-emerald-300 font-medium transition-colors">View Upcoming Events</a>
-            
-            <!-- Conditional Navigation based on login status and user type -->
-            {% if "is_logged_in" in session %}
-                <!-- Volunteer Specific Links -->
-                {% if session["user_type"] == "volunteer" %}
-                    <a href="/signups" class="text-emerald-300 font-bold transition-colors">Signups</a>
-                    <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
-                    <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
-                <!-- Organization Specific Links -->
-                {% elif session["user_type"] == "organisation" %}
-                    <a href="/signups" class="text-emerald-300 font-bold transition-colors">Signups</a>
-                    <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
-                    <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
-                {% endif %}
+            <a href="/volunteers" class="text-white hover:text-emerald-300 font-medium transition-colors">View Volunteers</a>
+            {% if session.get("user_type") == "volunteer" %}
+                <a href="/signups" class="text-emerald-300 font-bold transition-colors">My Signups</a>
+                <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
+                <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
+            {% elif session.get("user_type") == "organisation" %}
+                <a href="/signups" class="text-emerald-300 font-bold transition-colors">Signups</a>
+                <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
+                <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
             {% else %}
-                <!-- Links for non-logged-in users -->
-                <a href="/sign_up" class="text-white hover:text-emerald-300 font-medium transition-colors">Sign Up</a>
-                <a href="/log_in" class="text-white hover:text-emerald-300 font-medium transition-colors">Log In</a>
+                <a href="/signup" class="text-white hover:text-emerald-300 font-medium transition-colors">Sign Up</a>
+                <a href="/login" class="text-white hover:text-emerald-300 font-medium transition-colors">Log In</a>
             {% endif %}
         </div>
     </nav>
 
     <!-- Main Content Area -->
-    <main class="p-8 flex-grow">
-        <div class="max-w-6xl mx-auto">
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-md border border-gray-200">
-                <h2 class="text-3xl font-bold text-gray-800 mb-4">Your Signups</h2>
-                <p class="text-lg text-gray-600">Below is a list of all your volunteer signups and their current status.</p>
-            </section>
-            
-            <!-- Conditional view based on user type -->
-            {% if session["user_type"] == "organisation" %}
-                
-                <!-- Section for Accepted Signups (Organisation View) -->
-                <section class="mb-8">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Accepted Signups</h2>
-                    <div id="accepted-signups-grid" class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {% for signup in signups %}
-                            {% if signup['status'] == 'Accepted' %}
-                                <div class="signup-card bg-white p-6 rounded-xl shadow-lg border border-green-200 transition-transform transform hover:scale-105"
-                                    data-signup-id="{{ signup['id'] }}"
-                                    data-event-name="{{ signup['event_name'] }}"
-                                    data-role-name="{{ signup['role_name'] }}"
-                                    data-organisation-name="{{ signup['organisation_name'] }}"
-                                    data-status="{{ signup['status'] }}">
-                                    <h3 class="text-xl font-semibold mb-2 text-gray-900">{{ signup['event_name'] }}</h3>
-                                    <p class="text-gray-600 mb-1">
-                                        <span class="font-medium">Role:</span> {{ signup['role_name'] }}
-                                    </p>
-                                    <p class="text-gray-600 mb-1">
-                                        <span class="font-medium">Volunteer:</span> {{ signup['volunteer_name'] }}
-                                    </p>
-                                    <p class="text-sm font-semibold mt-2 text-green-600">
-                                        Status: {{ signup['status'] }}
-                                    </p>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </section>
-                
-                <!-- Section for Pending Signups (Organisation View) -->
-                <section>
-                    <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Pending Signups</h2>
-                    <div id="pending-signups-grid" class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {% for signup in signups %}
-                            {% if signup['status'] == 'Pending' %}
-                                <div class="signup-card bg-white p-6 rounded-xl shadow-lg border border-yellow-200 transition-transform transform hover:scale-105"
-                                    data-signup-id="{{ signup['id'] }}"
-                                    data-event-name="{{ signup['event_name'] }}"
-                                    data-role-name="{{ signup['role_name'] }}"
-                                    data-organisation-name="{{ signup['organisation_name'] }}"
-                                    data-status="{{ signup['status'] }}">
-                                    <h3 class="text-xl font-semibold mb-2 text-gray-900">{{ signup['event_name'] }}</h3>
-                                    <p class="text-gray-600 mb-1">
-                                        <span class="font-medium">Role:</span> {{ signup['role_name'] }}
-                                    </p>
-                                    <p class="text-gray-600 mb-1">
-                                        <span class="font-medium">Volunteer:</span> {{ signup['volunteer_name'] }}
-                                    </p>
-                                    <p class="text-sm font-semibold mt-2 text-yellow-600">
-                                        Status: {{ signup['status'] }}
-                                    </p>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </section>
+    <main class="p-8 flex-grow flex flex-col items-center">
+        <div class="max-w-4xl w-full">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">
+                {% if session["user_type"] == "volunteer" %}
+                    My Event Signups
+                {% else %}
+                    Signups for Our Events
+                {% endif %}
+            </h2>
 
-            {% else %}
-                
-                <!-- Section for All Signups (Volunteer View) -->
-                <section>
-                    <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">All Signups</h2>
-                    <!-- Signups Grid with Jinja2 Loop -->
-                    <div id="signups-grid" class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    
-                        <!-- Jinja2 loop to populate signup cards -->
-                        {% for signup in signups %}
-                            <div class="signup-card bg-white p-6 rounded-xl shadow-lg border border-gray-200 transition-transform transform hover:scale-105"
-                                data-signup-id="{{ signup['id'] }}"
-                                data-event-name="{{ signup['event_name'] }}"
-                                data-role-name="{{ signup['role_name'] }}"
-                                data-organisation-name="{{ signup['organisation_name'] }}"
-                                data-status="{{ signup['status'] }}">
-                                <h3 class="text-xl font-semibold mb-2 text-gray-900">{{ signup['event_name'] }}</h3>
-                                <p class="text-gray-600 mb-1">
-                                    <span class="font-medium">Role:</span> {{ signup['role_name'] }}
-                                </p>
-                                <p class="text-gray-600 mb-1">
-                                    <span class="font-medium">Organisation:</span> {{ signup['organisation_name'] }}
-                                </p>
-                                <p class="text-sm font-semibold mt-2
-                                    {% if signup['status'] == 'Pending' %}
-                                        text-yellow-600
-                                    {% elif signup['status'] == 'Accepted' %}
-                                        text-green-600
+            {% if signups %}
+                <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-700">
+                        <thead class="text-xs text-gray-500 uppercase table-header">
+                            <tr>
+                                {% if session["user_type"] == "volunteer" %}
+                                    <th scope="col">Event</th>
+                                    <th scope="col">Role</th>
+                                    <th scope="col">Organisation</th>
+                                    <th scope="col">Date</th>
+                                {% else %}
+                                    <th scope="col">Volunteer (Click to View Profile)</th>
+                                    <th scope="col">Event</th>
+                                    <th scope="col">Role</th>
+                                {% endif %}
+                                <th scope="col">Status</th>
+                                {% if session["user_type"] == "organisation" %}
+                                    <th scope="col">Action</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for signup in signups %}
+                                <tr class="bg-white table-row transition-all duration-150 hover:bg-gray-50">
+                                    {% if session["user_type"] == "volunteer" %}
+                                        <td class="font-medium text-gray-900">{{ signup.event_name }}</td>
+                                        <td>{{ signup.role_name }}</td>
+                                        <td>{{ signup.organisation_name }}</td>
+                                        <td>{{ signup.event_date }}</td>
                                     {% else %}
-                                        text-red-600
+                                        <td class="font-medium text-blue-600 hover:text-blue-800">
+                                            <a href="{{ url_for('view_volunteer', volunteer_id=signup.volunteerID) }}">
+                                                {{ signup.volunteer_name }}
+                                            </a>
+                                        </td>
+                                        <td>{{ signup.event_name }}</td>
+                                        <td>{{ signup.role_name }}</td>
                                     {% endif %}
-                                ">
-                                    Status: {{ signup['status'] }}
-                                </p>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </section>
-            
+                                    <td>
+                                        <span class="px-2 py-1 rounded-full text-xs font-semibold
+                                            {% if signup.status == 'Pending' %}
+                                                bg-yellow-100 text-yellow-800
+                                            {% elif signup.status == 'Accepted' %}
+                                                bg-green-100 text-green-800
+                                            {% elif signup.status == 'Rejected' %}
+                                                bg-red-100 text-red-800
+                                            {% endif %}">
+                                            {{ signup.status }}
+                                        </span>
+                                    </td>
+                                    {% if session["user_type"] == "organisation" %}
+                                        <td>
+                                            <div class="flex space-x-2">
+                                                <button onclick="updateStatus('{{ signup.id }}', 'Accepted')" class="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold hover:bg-green-600 transition-colors">
+                                                    Accept
+                                                </button>
+                                                <button onclick="updateStatus('{{ signup.id }}', 'Rejected')" class="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-semibold hover:bg-red-600 transition-colors">
+                                                    Reject
+                                                </button>
+                                            </div>
+                                        </td>
+                                    {% endif %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center p-8 bg-white rounded-2xl shadow-lg border border-gray-200">
+                    <p class="text-gray-500 text-lg">
+                        {% if session["user_type"] == "volunteer" %}
+                            You have not signed up for any events yet. <a href="{{ url_for('events') }}" class="text-emerald-500 hover:underline font-semibold">Browse events here!</a>
+                        {% else %}
+                            There are no signups for your events yet.
+                        {% endif %}
+                    </p>
+                </div>
             {% endif %}
-
         </div>
     </main>
 
@@ -181,5 +165,31 @@
         <p>&copy; 2025 Volunteer Management System</p>
     </footer>
 
+    <!-- JavaScript for updating signup status via AJAX -->
+    <script>
+        async function updateStatus(signupId, status) {
+            try {
+                const response = await fetch('/update_signup_status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ signup_id: signupId, status: status }),
+                });
+
+                if (response.ok) {
+                    // Refresh the page to show the updated status
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    console.error('Failed to update status:', error.error);
+                    alert('Failed to update status: ' + error.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            }
+        }
+    </script>
 </body>
 </html>
