@@ -2,12 +2,12 @@ from flask import Flask, render_template, g, request, redirect, url_for, session
 from datetime import date, datetime, timedelta
 import sqlite3
 
-# --- CONFIG ---
+# CONFIG
 DATABASE = "Community Connect.db"  # your SQLite database file
 app = Flask(__name__)
 app.secret_key = "Jiggery"
 
-# --- DATABASE CONNECTION ---
+# DATABSE CONNECTION
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -21,7 +21,10 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
-# --- ROUTES ---
+#///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#///////////////////////////////////////////////////////////////////ROUTES////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -29,9 +32,16 @@ def index():
 @app.route("/organisations")
 def organisations():
     db = get_db()
-    cur = db.execute("SELECT * FROM Organisations ORDER BY Name ASC")
+    cur = db.execute(
+        """
+        SELECT * FROM Organisations 
+        ORDER BY Name ASC
+        """
+    )
     organisations = cur.fetchall()
     return render_template("organisations.html", organisations=organisations)
+
+#////////////////////////////////////////////////////////////////////EVENTS PAGE///////////////////////////////////////////////////////////////////////////////////
 
 @app.route("/events", methods=["GET", "POST"])
 def events():
@@ -42,16 +52,27 @@ def events():
         if user_type == "organisation":
             event_id = request.form.get("event_id")
             if event_id:
-                db.execute("DELETE FROM Events WHERE Id = ?", (event_id,))
+                db.execute(
+                    """
+                    DELETE FROM Events 
+                    WHERE Id = ?
+                    """,
+                    (event_id,)
+                )
                 db.commit()
                 flash("Event deleted.", "info")
         return redirect(url_for("events"))
 
-    cur = db.execute("SELECT * FROM Events ORDER BY Date ASC")
+    cur = db.execute(
+        """
+        SELECT * FROM Events 
+        ORDER BY Date ASC
+        """
+    )
     events = cur.fetchall()
     return render_template("events.html", events=events)
 
-# ------------------- ADD EVENT ------------------- #
+# ADD EVENT
 @app.route("/add_event", methods=["POST"])
 def add_event():
     if session.get("user_type") != "organisation":
@@ -59,8 +80,10 @@ def add_event():
 
     db = get_db()
     db.execute(
-        """INSERT INTO Events (Name, Date, Location, StartTime, EndTime, OrganisationID, Description)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        """
+        INSERT INTO Events (Name, Date, Location, StartTime, EndTime, OrganisationID, Description)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
         (
             request.form["name"],
             request.form["date"],
@@ -74,7 +97,7 @@ def add_event():
     db.commit()
     return "OK", 200
 
-# ------------------- EDIT EVENT ------------------- #
+# EDIT EVENT
 @app.route("/edit_event", methods=["POST"])
 def edit_event():
     if session.get("user_type") != "organisation":
@@ -83,10 +106,18 @@ def edit_event():
     db = get_db()
     event_id = request.form["event_id"]
     desc = request.form["description"]
-    db.execute("UPDATE Events SET Description = ? WHERE Id = ?", (desc, event_id))
+    db.execute(
+        """
+        UPDATE Events 
+        SET Description = ? 
+        WHERE Id = ?
+        """,
+        (desc, event_id)
+    )
     db.commit()
     return "OK", 200
 
+# ADD EVENT ROLE
 @app.route("/add_event_role", methods=["POST"])
 def add_event_role():
     if session.get("user_type") != "organisation":
@@ -100,7 +131,10 @@ def add_event_role():
         required_skill_id = request.form.get("required_skill")
         
         db.execute(
-            "INSERT INTO EventRoles (EventID, Name, Description, SkillID) VALUES (?, ?, ?, ?)",
+            """
+            INSERT INTO EventRoles (EventID, Name, Description, SkillID) 
+            VALUES (?, ?, ?, ?)
+            """,
             (event_id, role_name, role_desc, required_skill_id),
         )
         db.commit()
@@ -109,7 +143,7 @@ def add_event_role():
         print(f"Error adding event role: {e}")
         return jsonify({"error": "An internal error occurred"}), 500
 
-# ------------------- GET EVENT ROLES FOR VOLUNTEERS ------------------- #
+# EVENT ROLES VIEW FOR VOLUNTEER ACCOUNTS
 @app.route("/get_event_roles", methods=["GET"])
 def get_event_roles():
     db = get_db()
@@ -120,7 +154,8 @@ def get_event_roles():
         volunteer_id = session.get("user_id")
         
         # Get all roles for the event, including the required skill name
-        cur = db.execute("""
+        cur = db.execute(
+            """
             SELECT 
                 er.ID,
                 er.Name,
@@ -129,25 +164,35 @@ def get_event_roles():
             FROM EventRoles er
             LEFT JOIN Skills s ON er.SkillID = s.Id
             WHERE er.EventID = ?
-        """, (event_id,))
+            """,
+            (event_id,)
+        )
         
         roles = [{"id": r["ID"], "name": r["Name"], "description": r["Description"], "required_skill_name": r["required_skill_name"]} for r in cur.fetchall()]
 
         # Check signup status for each role
         for role in roles:
             signup_status = db.execute(
-                "SELECT Status FROM Signups WHERE VolunteerID = ? AND RoleID = ?",
+                """
+                SELECT Status 
+                FROM Signups 
+                WHERE VolunteerID = ? AND RoleID = ?
+                """,
                 (volunteer_id, role["id"])
             ).fetchone()
             if signup_status:
                 role["signup_status"] = signup_status["Status"]
         
         # --- NEW: Fetch volunteer's skills to pass to the frontend for filtering ---
-        volunteer_skills_cur = db.execute("""
-            SELECT s.Name FROM VolunteerSkills vs
+        volunteer_skills_cur = db.execute(
+            """
+            SELECT s.Name 
+            FROM VolunteerSkills vs
             JOIN Skills s ON vs.SkillID = s.Id
             WHERE vs.VolunteerID = ?
-        """, (volunteer_id,))
+            """,
+            (volunteer_id,)
+        )
         volunteer_skills = [s["Name"] for s in volunteer_skills_cur.fetchall()]
         
         return jsonify({
@@ -157,7 +202,7 @@ def get_event_roles():
 
     return ("Unauthorized", 401)
 
-# ------------------- GET EVENT ROLES FOR ORGANISATIONS ------------------- #
+# EVENT ROLES VIEW FOR ORGANISATION ACCOUNTS
 @app.route("/get_org_event_roles", methods=["GET"])
 def get_org_event_roles():
     if session.get("user_type") != "organisation":
@@ -168,22 +213,23 @@ def get_org_event_roles():
 
     # Fetch roles for the event, including the required skill name
     cur = db.execute(
-        "SELECT er.ID, er.Name, er.Description, s.Name AS required_skill_name FROM EventRoles er LEFT JOIN Skills s ON er.SkillID = s.Id WHERE er.EventID = ?",
+        """
+        SELECT 
+            er.ID, 
+            er.Name, 
+            er.Description, 
+            s.Name AS required_skill_name 
+        FROM EventRoles er 
+        LEFT JOIN Skills s ON er.SkillID = s.Id 
+        WHERE er.EventID = ?
+        """,
         (event_id,)
     )
     roles = [{"id": r["ID"], "name": r["Name"], "description": r["Description"], "required_skill_name": r["required_skill_name"]} for r in cur.fetchall()]
 
     return jsonify(roles)
 
-# ------------------- GET ALL SKILLS FOR DROPDOWN ------------------- #
-@app.route("/get_skills", methods=["GET"])
-def get_skills():
-    db = get_db()
-    cur = db.execute("SELECT Id, Name FROM Skills ORDER BY Name")
-    skills = [{"id": s["Id"], "name": s["Name"]} for s in cur.fetchall()]
-    return jsonify(skills)
-
-# ------------------- REGISTER FOR ROLE ------------------- #
+# CREATE NEW SIGNUP FOR VOLUNTEER ACCOUNTS
 @app.route("/register_for_role", methods=["POST"])
 def register_for_role():
     if session.get("user_type") != "volunteer":
@@ -194,43 +240,77 @@ def register_for_role():
     volunteer_id = session["user_id"]
 
     # --- NEW: Check if the volunteer has the required skill for the role ---
-    role_skill_cur = db.execute("""
-        SELECT s.Name FROM EventRoles er
+    role_skill_cur = db.execute(
+        """
+        SELECT s.Name 
+        FROM EventRoles er
         LEFT JOIN Skills s ON er.SkillID = s.Id
         WHERE er.ID = ?
-    """, (role_id,))
+        """,
+        (role_id,)
+    )
     required_skill = role_skill_cur.fetchone()
 
     # If the role has a required skill, check if the volunteer has it
     if required_skill and required_skill["Name"]:
-        volunteer_skill_cur = db.execute("""
-            SELECT s.Name FROM VolunteerSkills vs
+        volunteer_skill_cur = db.execute(
+            """
+            SELECT s.Name 
+            FROM VolunteerSkills vs
             JOIN Skills s ON vs.SkillID = s.Id
             WHERE vs.VolunteerID = ? AND s.Name = ?
-        """, (volunteer_id, required_skill["Name"]))
+            """,
+            (volunteer_id, required_skill["Name"])
+        )
         
         if not volunteer_skill_cur.fetchone():
             return "You do not have the required skills for this role.", 400
 
     # Check if the volunteer has already signed up
     signup_cur = db.execute(
-        "SELECT * FROM Signups WHERE VolunteerID = ? AND RoleID = ?",
+        """
+        SELECT * FROM Signups 
+        WHERE VolunteerID = ? AND RoleID = ?
+        """,
         (volunteer_id, role_id),
     )
     if signup_cur.fetchone():
         return "Already signed up", 400
 
     db.execute(
-        "INSERT INTO Signups (VolunteerID, RoleID, Status) VALUES (?, ?, 'Pending')",
+        """
+        INSERT INTO Signups (VolunteerID, RoleID, Status) 
+        VALUES (?, ?, 'Pending')
+        """,
         (volunteer_id, role_id),
     )
     db.commit()
     return "OK", 200
 
+#////////////////////////////////////////////////////////////////////SELECT ALL SKILLS////////////////////////////////////////////////////////////////////
+
+# SELECT SKILLS FOR SKILL DROPDOWN MENUS
+@app.route("/get_skills", methods=["GET"])
+def get_skills():
+    db = get_db()
+    cur = db.execute(
+        """
+        SELECT Id, Name 
+        FROM Skills 
+        ORDER BY Name
+        """
+    )
+    skills = [{"id": s["Id"], "name": s["Name"]} for s in cur.fetchall()]
+    return jsonify(skills)
+
+#////////////////////////////////////////////////////////////////////CREATE NEW ACCOUNT////////////////////////////////////////////////////////////////////
+
+# CHOOSE TYPE OF ACCOUNT
 @app.route("/signup")
 def signup():
     return render_template("signup.html")
 
+# CREATE VOLUNTEER ACCOUNT
 @app.route("/signup/volunteer", methods = ['GET', 'POST'])
 def volunteer_signup():
     if request.method == 'POST':
@@ -242,11 +322,18 @@ def volunteer_signup():
         birthdate = request.form['birthdate']
         phone_num = request.form['phone']
         location = request.form['location']
-        cur = db.execute("INSERT INTO Volunteers (Password, FirstName, LastName, Email, PhoneNumber, Location, BirthDate) VALUES (?, ?, ?, ?, ?, ?, ?)", (password, first_name, last_name, email, phone_num, location, birthdate))
+        cur = db.execute(
+            """
+            INSERT INTO Volunteers (Password, FirstName, LastName, Email, PhoneNumber, Location, BirthDate) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, 
+            (password, first_name, last_name, email, phone_num, location, birthdate)
+        )
         db.commit()
         return redirect(url_for('login')) 
     return render_template("volunteer_signup.html")
 
+# CREATE ORGANISATION ACCOUNT
 @app.route("/signup/organisation", methods = ['GET', 'POST'])
 def organisation_signup():
     if request.method == 'POST':
@@ -256,11 +343,20 @@ def organisation_signup():
             email = request.form['email']
             password = request.form['password']
             print("creating organisation record")
-            cur = db.execute("INSERT INTO Organisations (Password, Name, Email, Address) VALUES (?, ?, ?, ?)", (password, org_name, email, address))
+            cur = db.execute(
+                """
+                INSERT INTO Organisations (Password, Name, Email, Address) 
+                VALUES (?, ?, ?, ?)
+                """, 
+                (password, org_name, email, address)
+            )
             db.commit()
             return redirect(url_for('login')) 
     return render_template("organisation_signup.html")
 
+#////////////////////////////////////////////////////////////////////LOGIN PAGE/////////////////////////////////////////////////////////////////////////////////////
+
+# LOGIN
 @app.route("/login", methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -268,7 +364,13 @@ def login():
         password = request.form['password']
 
         db = get_db()
-        cur = db.execute("SELECT * FROM Volunteers WHERE Email=? AND Password=?", (email, password))
+        cur = db.execute(
+            """
+            SELECT * FROM Volunteers 
+            WHERE Email=? AND Password=?
+            """, 
+            (email, password)
+        )
         volunteer = cur.fetchone()
 
         if volunteer:
@@ -278,7 +380,13 @@ def login():
             return redirect(url_for('index'))    
         else:
             db = get_db()
-            cur = db.execute("SELECT * FROM Organisations WHERE Email=? AND Password=?", (email, password))
+            cur = db.execute(
+                """
+                SELECT * FROM Organisations 
+                WHERE Email=? AND Password=?
+                """, 
+                (email, password)
+            )
             org = cur.fetchone()
             if org:
                 session['user_type'] = 'organisation'
@@ -290,6 +398,9 @@ def login():
 
     return render_template("login.html")
 
+#////////////////////////////////////////////////////////////////////EDIT PROFILE DETAILS////////////////////////////////////////////////////////////////////////////
+
+# UPDATE PROFILE INFO
 @app.route('/edit_profile', methods=['GET', 'POST'])
 def edit_profile():
     if 'user_id' not in session or 'user_type' not in session:
@@ -305,53 +416,148 @@ def edit_profile():
         
         # Helper function to get or create a skill ID
         def get_or_create_skill_id(skill_name):
-            cur = db.execute("SELECT ID FROM Skills WHERE Name = ?", (skill_name,))
+            cur = db.execute(
+                """
+                SELECT ID 
+                FROM Skills 
+                WHERE Name = ?
+                """, 
+                (skill_name,)
+            )
             skill = cur.fetchone()
             if skill:
                 return skill['ID']
             else:
-                cur = db.execute("INSERT INTO Skills (Name) VALUES (?)", (skill_name,))
+                cur = db.execute(
+                    """
+                    INSERT INTO Skills (Name) 
+                    VALUES (?)
+                    """, 
+                    (skill_name,)
+                )
                 db.commit()
                 return cur.lastrowid
 
         if user_type == 'volunteer':
             if field_to_update == 'email':
-                db.execute("UPDATE Volunteers SET Email = ? WHERE ID = ?", (new_value, user_id))
+                db.execute(
+                    """
+                    UPDATE Volunteers 
+                    SET Email = ? 
+                    WHERE ID = ?
+                    """, 
+                    (new_value, user_id)
+                )
             elif field_to_update == 'phone':
-                db.execute("UPDATE Volunteers SET PhoneNumber = ? WHERE ID = ?", (new_value, user_id))
+                db.execute(
+                    """
+                    UPDATE Volunteers 
+                    SET PhoneNumber = ? 
+                    WHERE ID = ?
+                    """, 
+                    (new_value, user_id)
+                )
             elif field_to_update == 'location':
-                db.execute("UPDATE Volunteers SET Location = ? WHERE ID = ?", (new_value, user_id))
+                db.execute(
+                    """
+                    UPDATE Volunteers 
+                    SET Location = ? 
+                    WHERE ID = ?
+                    """, 
+                    (new_value, user_id)
+                )
             elif field_to_update == 'bio':
-                db.execute("UPDATE Volunteers SET Bio = ? WHERE ID = ?", (new_value, user_id))
+                db.execute(
+                    """
+                    UPDATE Volunteers 
+                    SET Bio = ? 
+                    WHERE ID = ?
+                    """, 
+                    (new_value, user_id)
+                )
             elif field_to_update == 'skills':
                 # Split the skills string from the form, handling empty values
                 skills = [s.strip() for s in new_value.split(',') if s.strip()]
 
                 # First, delete all existing skills for the volunteer
-                db.execute("DELETE FROM VolunteerSkills WHERE VolunteerID = ?", (user_id,))
+                db.execute(
+                    """
+                    DELETE FROM VolunteerSkills 
+                    WHERE VolunteerID = ?
+                    """, 
+                    (user_id,)
+                )
                 
                 # Then, insert the new skills
                 for skill_name in skills:
                     skill_id = get_or_create_skill_id(skill_name)
                     if skill_id:
-                        db.execute("INSERT INTO VolunteerSkills (VolunteerID, SkillID) VALUES (?, ?)", (user_id, skill_id))
+                        db.execute(
+                            """
+                            INSERT INTO VolunteerSkills (VolunteerID, SkillID) 
+                            VALUES (?, ?)
+                            """, 
+                            (user_id, skill_id)
+                        )
             elif field_to_update == 'password':
                 # Note: In a real app, you would hash the password here
-                db.execute("UPDATE Volunteers SET Password = ? WHERE ID = ?", (new_value, user_id))
+                db.execute(
+                    """
+                    UPDATE Volunteers 
+                    SET Password = ? 
+                    WHERE ID = ?
+                    """, 
+                    (new_value, user_id)
+                )
 
         elif user_type == 'organisation':
             if field_to_update == 'name':
-                db.execute("UPDATE Organisations SET Name = ? WHERE ID = ?", (new_value, user_id))
+                db.execute(
+                    """
+                    UPDATE Organisations 
+                    SET Name = ? 
+                    WHERE ID = ?
+                    """, 
+                    (new_value, user_id)
+                )
             elif field_to_update == 'address':
-                db.execute("UPDATE Organisations SET Address = ? WHERE ID = ?", (new_value, user_id))
+                db.execute(
+                    """
+                    UPDATE Organisations 
+                    SET Address = ? 
+                    WHERE ID = ?
+                    """, 
+                    (new_value, user_id)
+                )
             elif field_to_update == 'website_url':
-                db.execute("UPDATE Organisations SET WebsiteURL = ? WHERE ID = ?", (new_value, user_id))
+                db.execute(
+                    """
+                    UPDATE Organisations 
+                    SET WebsiteURL = ? 
+                    WHERE ID = ?
+                    """, 
+                    (new_value, user_id)
+                )
             elif field_to_update == 'bio':
                 # Correctly using the 'Description' column name for organisation bio
-                db.execute("UPDATE Organisations SET Description = ? WHERE ID = ?", (new_value, user_id))
+                db.execute(
+                    """
+                    UPDATE Organisations 
+                    SET Description = ? 
+                    WHERE ID = ?
+                    """, 
+                    (new_value, user_id)
+                )
             elif field_to_update == 'password':
                 # Note: In a real app, you would hash the password here
-                db.execute("UPDATE Organisations SET Password = ? WHERE ID = ?", (new_value, user_id))
+                db.execute(
+                    """
+                    UPDATE Organisations 
+                    SET Password = ? 
+                    WHERE ID = ?
+                    """, 
+                    (new_value, user_id)
+                )
 
         db.commit()
         return redirect('/edit_profile')
@@ -360,24 +566,41 @@ def edit_profile():
     user = {}
     if user_type == 'volunteer':
         # Retrieve volunteer's basic info
-        cur = db.execute("SELECT Email, PhoneNumber, Location, Bio FROM Volunteers WHERE ID = ?", (user_id,))
+        cur = db.execute(
+            """
+            SELECT Email, PhoneNumber, Location, Bio 
+            FROM Volunteers 
+            WHERE ID = ?
+            """, 
+            (user_id,)
+        )
         volunteer_data = cur.fetchone()
         if not volunteer_data:
             return "Volunteer not found.", 404
         user['email'], user['phone_number'], user['location'], user['bio'] = volunteer_data
 
         # Retrieve volunteer's skills from the separate table
-        cur = db.execute("""
+        cur = db.execute(
+            """
             SELECT T2.Name
             FROM VolunteerSkills AS T1
             JOIN Skills AS T2 ON T1.SkillID = T2.ID
             WHERE T1.VolunteerID = ?
-        """, (user_id,))
+            """, 
+            (user_id,)
+        )
         user['skills'] = [row[0] for row in cur.fetchall()]
 
     elif user_type == 'organisation':
         # Retrieve organisation's info
-        cur = db.execute("SELECT Name, Address, WebsiteURL, Description FROM Organisations WHERE ID = ?", (user_id,))
+        cur = db.execute(
+            """
+            SELECT Name, Address, WebsiteURL, Description 
+            FROM Organisations 
+            WHERE ID = ?
+            """, 
+            (user_id,)
+        )
         org_data = cur.fetchone()
         if not org_data:
             return "Organisation not found.", 404
@@ -387,6 +610,8 @@ def edit_profile():
     user['user_type'] = user_type
 
     return render_template('edit_profile.html', user=user)
+
+#////////////////////////////////////////////////////////////////////VIEW SIGNUPS PAGE////////////////////////////////////////////////////////////////////////////
 
 @app.route('/view_signups')
 def view_signups():
@@ -405,10 +630,13 @@ def view_signups():
     if user_type == "volunteer":
         # SQL query to get all signups for the current volunteer.
         query = """
-            SELECT s.id, s.status,
-                   e.Name AS event_name, e.Date AS event_date,
-                   o.Name AS organisation_name,
-                   r.Name AS role_name
+            SELECT 
+                s.id, 
+                s.status,
+                e.Name AS event_name, 
+                e.Date AS event_date,
+                o.Name AS organisation_name,
+                r.Name AS role_name
             FROM Signups s
             JOIN EventRoles r ON s.roleID = r.id
             JOIN Events e ON r.EventID = e.id
@@ -423,11 +651,13 @@ def view_signups():
         org_id = user_id
         # NOTE: Added the volunteer's ID (v.id) to the select statement to enable linking
         query = """
-            SELECT s.id, s.status,
-                   v.FirstName || ' ' || v.LastName AS volunteer_name,
-                   v.Id AS volunteerID,
-                   e.Name AS event_name,
-                   r.Name AS role_name
+            SELECT 
+                s.id, 
+                s.status,
+                v.FirstName || ' ' || v.LastName AS volunteer_name,
+                v.Id AS volunteerID,
+                e.Name AS event_name,
+                r.Name AS role_name
             FROM Signups s
             JOIN EventRoles r ON s.roleID = r.id
             JOIN Events e ON r.eventID = e.id
@@ -443,7 +673,11 @@ def view_signups():
 def volunteers():
     """Displays a list of all volunteers."""
     conn = get_db()
-    volunteers = conn.execute("SELECT * FROM Users").fetchall()
+    volunteers = conn.execute(
+        """
+        SELECT * FROM Users
+        """
+    ).fetchall()
     conn.close()
     return render_template('volunteers.html', volunteers=volunteers)
 
@@ -452,11 +686,20 @@ def view_volunteer(volunteer_id):
     db = get_db()
 
     # 1. Fetch volunteer's primary information
-    volunteer_cur = db.execute("""
-        SELECT FirstName, LastName, Email, PhoneNumber, BirthDate, Bio
+    volunteer_cur = db.execute(
+        """
+        SELECT 
+            FirstName, 
+            LastName, 
+            Email, 
+            PhoneNumber, 
+            BirthDate, 
+            Bio
         FROM Volunteers
         WHERE Id = ?
-    """, (volunteer_id,))
+        """, 
+        (volunteer_id,)
+    )
     volunteer_data = volunteer_cur.fetchone()
 
     if not volunteer_data:
@@ -464,19 +707,22 @@ def view_volunteer(volunteer_id):
         return redirect(url_for('volunteers'))
 
     # 2. Fetch volunteer's skills
-    skills_cur = db.execute("""
+    skills_cur = db.execute(
+        """
         SELECT s.Name
         FROM VolunteerSkills vs
         JOIN Skills s ON vs.SkillID = s.Id
         WHERE vs.VolunteerID = ?
-    """, (volunteer_id,))
+        """, 
+        (volunteer_id,)
+    )
     skills = [s['Name'] for s in skills_cur.fetchall()]
 
     # 3. Calculate age from birthdate
     # NOTE: The age calculation has been re-added as requested
     birthdate = datetime.strptime(volunteer_data['BirthDate'], '%Y-%m-%d').date()
     today = date.today()
-    age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+    age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, today.day))
 
     # Prepare data to send to the template
     volunteer = {
@@ -514,13 +760,19 @@ def update_signup_status():
 
     try:
         db.execute(
-            "UPDATE Signups SET status = ? WHERE id = ?",
+            """
+            UPDATE Signups 
+            SET status = ? 
+            WHERE id = ?
+            """,
             (status, signup_id)
         )
         db.commit()
         return jsonify({'success': True, 'message': f'Signup {signup_id} updated to {status}'})
     except sqlite3.Error as e:
         return jsonify({'error': str(e)}), 500
+
+#////////////////////////////////////////////////////////////////////LOG OUT/////////////////////////////////////////////////////////////////////////////////////
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():

@@ -117,11 +117,14 @@
 
                 <!-- Volunteer-specific view -->
                 {% else %}
+
+                {% if session['user_type'] == 'volunteer' %}
                     <div class="text-center mb-6">
                         <button id="toggle-events-btn" class="bg-gray-800 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-700 transition-colors shadow-md">
                             Filter by My Skills
                         </button>
                     </div>
+                {% endif %}
                     <!-- Events Grid with Jinja2 Loop for Volunteers -->
                     <div id="events-grid-volunteer" class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {% for event in events %}

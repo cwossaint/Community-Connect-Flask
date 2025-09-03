@@ -46,22 +46,29 @@
         <p class="mt-2 text-xl font-light">Connecting Volunteers, Organisations, and Events</p>
     </header>
 
+
     <!-- Navigation Bar -->
     <nav class="bg-gray-800 p-2 text-center shadow-md">
         <div class="max-w-4xl mx-auto flex justify-center space-x-6">
-            <a href="/" class="text-white hover:text-emerald-300 font-medium transition-colors">Home</a>
+            <a href="/" class="text-emerald-300 font-bold transition-colors">Home</a>
             <a href="/organisations" class="text-white hover:text-emerald-300 font-medium transition-colors">View Organisations</a>
             <a href="/events" class="text-white hover:text-emerald-300 font-medium transition-colors">View Upcoming Events</a>
-            <a href="/volunteers" class="text-white hover:text-emerald-300 font-medium transition-colors">View Volunteers</a>
-            {% if session.get("user_type") == "volunteer" %}
-                <a href="/signups" class="text-emerald-300 font-bold transition-colors">My Signups</a>
-                <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
-                <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
-            {% elif session.get("user_type") == "organisation" %}
-                <a href="/signups" class="text-emerald-300 font-bold transition-colors">Signups</a>
-                <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
-                <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
+            
+            <!-- Conditional Navigation based on login status and user type -->
+            {% if session["user_type"] %}
+                <!-- Volunteer Specific Links -->
+                {% if session["user_type"] == "volunteer" %}
+                    <a href="/view_signups" class="text-white hover:text-emerald-300 font-medium transition-colors">View Signups</a>
+                    <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
+                    <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
+                <!-- Organization Specific Links -->
+                {% elif session["user_type"] == "organisation" %}
+                    <a href="/view_signups" class="text-white hover:text-emerald-300 font-medium transition-colors">View Signups</a>
+                    <a href="/edit_profile" class="text-white hover:text-emerald-300 font-medium transition-colors">Edit Profile</a>
+                    <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
+                {% endif %}
             {% else %}
+                <!-- Links for non-logged-in users -->
                 <a href="/signup" class="text-white hover:text-emerald-300 font-medium transition-colors">Sign Up</a>
                 <a href="/login" class="text-white hover:text-emerald-300 font-medium transition-colors">Log In</a>
             {% endif %}
