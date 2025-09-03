@@ -86,24 +86,29 @@ def edit_event():
     db.commit()
     return "OK", 200
 
-# ------------------- ADD EVENT ROLE ------------------- #
 @app.route("/add_event_role", methods=["POST"])
 def add_event_role():
     if session.get("user_type") != "organisation":
         return "Unauthorized", 401
+    
+    try:
+        db = get_db()
+        event_id = request.form["event_id"]
+        role_name = request.form["role_name"]
+        role_desc = request.form["role_description"]
+        required_skill_id = request.form.get("required_skill")
+        
+        db.execute(
+            "INSERT INTO EventRoles (EventID, Name, Description, SkillID) VALUES (?, ?, ?, ?)",
+            (event_id, role_name, role_desc, required_skill_id),
+        )
+        db.commit()
+        return "OK", 200
+    except Exception as e:
+        print(f"Error adding event role: {e}")
+        return jsonify({"error": "An internal error occurred"}), 500
 
-    db = get_db()
-    event_id = request.form["event_id"]
-    role_name = request.form["role_name"]
-    role_desc = request.form["role_description"]
-    db.execute(
-        "INSERT INTO EventRoles (EventID, Name, Description) VALUES (?, ?, ?)",
-        (event_id, role_name, role_desc),
-    )
-    db.commit()
-    return "OK", 200
-
-# ------------------- GET EVENT ROLES ------------------- #
+# ------------------- GET EVENT ROLES FOR VOLUNTEERS ------------------- #
 @app.route("/get_event_roles", methods=["GET"])
 def get_event_roles():
     db = get_db()
@@ -113,9 +118,19 @@ def get_event_roles():
         event_id = request.args.get("event_id")
         volunteer_id = session.get("user_id")
         
-        # Get all roles for the event
-        cur = db.execute("SELECT ID, Name, Description FROM EventRoles WHERE EventID = ?", (event_id,))
-        roles = [{"id": r["ID"], "name": r["Name"], "description": r["Description"]} for r in cur.fetchall()]
+        # Get all roles for the event, including the required skill name
+        cur = db.execute("""
+            SELECT 
+                er.ID,
+                er.Name,
+                er.Description,
+                s.Name AS required_skill_name
+            FROM EventRoles er
+            LEFT JOIN Skills s ON er.SkillID = s.Id
+            WHERE er.EventID = ?
+        """, (event_id,))
+        
+        roles = [{"id": r["ID"], "name": r["Name"], "description": r["Description"], "required_skill_name": r["required_skill_name"]} for r in cur.fetchall()]
 
         # Check signup status for each role
         for role in roles:
@@ -130,6 +145,7 @@ def get_event_roles():
 
     return ("Unauthorized", 401)
 
+# ------------------- GET EVENT ROLES FOR ORGANISATIONS ------------------- #
 @app.route("/get_org_event_roles", methods=["GET"])
 def get_org_event_roles():
     if session.get("user_type") != "organisation":
@@ -138,13 +154,22 @@ def get_org_event_roles():
     db = get_db()
     event_id = request.args.get("event_id")
 
-    # Fetch roles for the event
+    # Fetch roles for the event, including the required skill name
     cur = db.execute(
-        "SELECT ID, Name, Description FROM EventRoles WHERE EventID = ?", (event_id,)
+        "SELECT er.ID, er.Name, er.Description, s.Name AS required_skill_name FROM EventRoles er LEFT JOIN Skills s ON er.SkillID = s.Id WHERE er.EventID = ?",
+        (event_id,)
     )
-    roles = [{"id": r["ID"], "name": r["Name"], "description": r["Description"]} for r in cur.fetchall()]
+    roles = [{"id": r["ID"], "name": r["Name"], "description": r["Description"], "required_skill_name": r["required_skill_name"]} for r in cur.fetchall()]
 
     return jsonify(roles)
+
+# ------------------- GET ALL SKILLS FOR DROPDOWN ------------------- #
+@app.route("/get_skills", methods=["GET"])
+def get_skills():
+    db = get_db()
+    cur = db.execute("SELECT Id, Name FROM Skills ORDER BY Name")
+    skills = [{"id": s["Id"], "name": s["Name"]} for s in cur.fetchall()]
+    return jsonify(skills)
 
 # ------------------- REGISTER FOR ROLE ------------------- #
 @app.route("/register_for_role", methods=["POST"])
@@ -309,10 +334,6 @@ def edit_profile():
             WHERE T1.VolunteerID = ?
         """, (user_id,))
         user['skills'] = [row[0] for row in cur.fetchall()]
-
-        # Retrieve all available skills for the form
-        cur = db.execute("SELECT Name FROM Skills")
-        user['all_skills'] = [row[0] for row in cur.fetchall()]
 
     elif user_type == 'organisation':
         # Retrieve organisation's info
