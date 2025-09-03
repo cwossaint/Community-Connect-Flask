@@ -1,7 +1,9 @@
 <!--
-    This template provides a form for a logged-in volunteer to edit their profile information.
-    It is styled using Tailwind CSS for a clean and responsive layout.
-    The form submits a POST request to the server, which will handle the update logic.
+    This template provides forms for both volunteers and organizations to edit their profiles.
+    It uses a conditional view based on the user's account type.
+    - Volunteers can update their email, password, phone, location, bio, and skills.
+    - Organizations can update their name, address, website URL, bio, and password.
+    The page is styled using Tailwind CSS and includes JavaScript for interactive form toggles and a skills modal.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -19,123 +21,279 @@
             background-color: #f3f4f6;
             color: #1f2937;
         }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
 
-        <!-- Header Section -->
-        <header class="bg-emerald-500 text-white p-6 text-center rounded-b-xl shadow-lg">
-            <h1 class="text-4xl font-bold">Community Connect: Volunteer Management System</h1>
-            <p class="mt-2 text-xl font-light">Connecting Volunteers, Organisations, and Events</p>
-        </header>
-    
-        <!-- Navigation Bar -->
-        <nav class="bg-gray-800 p-2 text-center shadow-md">
-            <div class="max-w-4xl mx-auto flex justify-center space-x-6">
-                <a href="/" class="text-white hover:text-emerald-300 font-medium transition-colors">Home</a>
-                <a href="/organisations" class="text-white hover:text-emerald-300 font-medium transition-colors">View Organisations</a>
-                <a href="/events" class="text-white hover:text-emerald-300 font-medium transition-colors">View Upcoming Events</a>
+    <!-- Header Section -->
+    <header class="bg-emerald-500 text-white p-6 text-center rounded-b-xl shadow-lg">
+        <h1 class="text-4xl font-bold">Community Connect: Volunteer Management System</h1>
+        <p class="mt-2 text-xl font-light">Connecting Volunteers, Organisations, and Events</p>
+    </header>
 
-                    <!-- Volunteer Specific Links -->
-                    {% if session["user_type"] == "volunteer" %}
-                        <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">My Signups</a>
-                        <a href="/edit_profile" class="text-emerald-300 font-bold transition-colors">Edit Profile</a>
-                        <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
-                    <!-- Organization Specific Links -->
-                    {% elif session["user_type"] == "organisation" %}
-                        <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">Signups</a>
-                        <a href="/edit_profile" class="text-emerald-300 font-bold transition-colors">Edit Profile</a>
-                        <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
-                    {% endif %}
-            </div>
-        </nav>
+    <!-- Navigation Bar -->
+    <nav class="bg-gray-800 p-2 text-center shadow-md">
+        <div class="max-w-4xl mx-auto flex justify-center space-x-6">
+            <a href="/" class="text-white hover:text-emerald-300 font-medium transition-colors">Home</a>
+            <a href="/organisations" class="text-white hover:text-emerald-300 font-medium transition-colors">View Organisations</a>
+            <a href="/events" class="text-white hover:text-emerald-300 font-medium transition-colors">View Upcoming Events</a>
+            
+            <!-- Conditional Navigation based on user type -->
+            {% if session["user_type"] == "volunteer" %}
+                <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">My Signups</a>
+                <a href="/edit_profile" class="text-emerald-300 font-bold transition-colors">Edit Profile</a>
+                <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
+            {% elif session["user_type"] == "organisation" %}
+                <a href="/signups" class="text-white hover:text-emerald-300 font-medium transition-colors">Signups</a>
+                <a href="/edit_profile" class="text-emerald-300 font-bold transition-colors">Edit Profile</a>
+                <a href="/logout" class="text-white hover:text-emerald-300 font-medium transition-colors">Log Out</a>
+            {% endif %}
+        </div>
+    </nav>
 
     <!-- Main Content Area -->
     <main class="p-8 flex-grow flex flex-col items-center justify-center">
         <div class="max-w-lg w-full bg-white p-10 rounded-xl shadow-lg border border-gray-200">
             <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Update Your Information</h2>
             
-            <!-- Individual fields with toggle functionality -->
-            <div class="space-y-4">
-                
-                <!-- EMAIL -->
-                <div class="border rounded-lg shadow-sm">
-                    <button type="button" onclick="toggleField('emailField')" 
-                        class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
-                        <span class="font-medium text-gray-700">Email</span>
-                        <span class="text-sm text-gray-500">{{ user.email }}</span>
-                    </button>
-                    <div id="emailField" class="hidden px-4 py-3 border-t">
-                        <form action="/edit_profile" method="POST" class="flex gap-2">
-                            <input type="hidden" name="field" value="email">
-                            <input type="email" name="value" value="{{ user.email }}" 
-                                class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
-                            <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
-                        </form>
+            <!-- Conditional content based on user type -->
+            {% if session["user_type"] == "volunteer" %}
+
+                <!-- Volunteer-specific fields -->
+                <div class="space-y-4">
+                    <!-- EMAIL -->
+                    <div class="border rounded-lg shadow-sm">
+                        <button type="button" onclick="toggleField('emailField')" 
+                            class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
+                            <span class="font-medium text-gray-700">Email</span>
+                            <span class="text-sm text-gray-500">{{ user.email }}</span>
+                        </button>
+                        <div id="emailField" class="hidden px-4 py-3 border-t">
+                            <form action="/edit_profile" method="POST" class="flex gap-2">
+                                <input type="hidden" name="field" value="email">
+                                <input type="email" name="value" value="{{ user.email }}" 
+                                    class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                                <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- PASSWORD -->
+                    <div class="border rounded-lg shadow-sm">
+                        <button type="button" onclick="toggleField('passwordField')" 
+                            class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
+                            <span class="font-medium text-gray-700">Password</span>
+                            <span class="text-sm text-gray-500">••••••</span>
+                        </button>
+                        <div id="passwordField" class="hidden px-4 py-3 border-t">
+                            <form action="/edit_profile" method="POST" class="flex gap-2">
+                                <input type="hidden" name="field" value="password">
+                                <input type="password" name="value" placeholder="Enter new password"
+                                    class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                                <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- PHONE -->
+                    <div class="border rounded-lg shadow-sm">
+                        <button type="button" onclick="toggleField('phoneField')" 
+                            class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
+                            <span class="font-medium text-gray-700">Phone</span>
+                            <span class="text-sm text-gray-500">{{ user.phone_number }}</span>
+                        </button>
+                        <div id="phoneField" class="hidden px-4 py-3 border-t">
+                            <form action="/edit_profile" method="POST" class="flex gap-2">
+                                <input type="hidden" name="field" value="phone_number">
+                                <input type="tel" name="value" value="{{ user.phone_number }}"
+                                    class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500">
+                                <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- LOCATION -->
+                    <div class="border rounded-lg shadow-sm">
+                        <button type="button" onclick="toggleField('locationField')" 
+                            class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
+                            <span class="font-medium text-gray-700">Location</span>
+                            <span class="text-sm text-gray-500">{{ user.location }}</span>
+                        </button>
+                        <div id="locationField" class="hidden px-4 py-3 border-t">
+                            <form action="/edit_profile" method="POST" class="flex gap-2">
+                                <input type="hidden" name="field" value="location">
+                                <input type="text" name="value" value="{{ user.location }}"
+                                    class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500">
+                                <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- BIO -->
+                    <div class="border rounded-lg shadow-sm">
+                        <button type="button" onclick="toggleField('bioField')" 
+                            class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
+                            <span class="font-medium text-gray-700">Bio</span>
+                            <span class="text-sm text-gray-500">Click to edit</span>
+                        </button>
+                        <div id="bioField" class="hidden px-4 py-3 border-t">
+                            <form action="/edit_profile" method="POST" class="flex flex-col gap-2">
+                                <input type="hidden" name="field" value="bio">
+                                <textarea name="value" rows="4" 
+                                    class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 resize-none">{{ user.bio }}</textarea>
+                                <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- SKILLS -->
+                    <div class="border rounded-lg shadow-sm">
+                        <div class="px-4 py-3 bg-gray-100 rounded-lg">
+                            <span class="font-medium text-gray-700">Skills</span>
+                            <div id="selected-skills" class="flex flex-wrap gap-2 mt-2">
+                                <!-- The JavaScript will dynamically update this section -->
+                                {% for skill in user.skills %}
+                                    <span class="bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded-full">{{ skill }}</span>
+                                {% endfor %}
+                            </div>
+                            <button type="button" onclick="openSkillsModal()" 
+                                class="mt-2 text-sm text-emerald-600 hover:underline">
+                                Edit Skills
+                            </button>
+                            <!-- Hidden input to store selected skills -->
+                            <form id="skillsForm" action="/edit_profile" method="POST">
+                                <input type="hidden" name="field" value="skills">
+                                <input type="hidden" name="value" id="skills-input">
+                            </form>
+                        </div>
                     </div>
                 </div>
 
-                <!-- PASSWORD -->
-                <div class="border rounded-lg shadow-sm">
-                    <button type="button" onclick="toggleField('passwordField')" 
-                        class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
-                        <span class="font-medium text-gray-700">Password</span>
-                        <span class="text-sm text-gray-500">••••••</span>
-                    </button>
-                    <div id="passwordField" class="hidden px-4 py-3 border-t">
-                        <form action="/edit_profile" method="POST" class="flex gap-2">
-                            <input type="hidden" name="field" value="password">
-                            <input type="password" name="value" placeholder="Enter new password"
-                                class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
-                            <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
-                        </form>
+            {% elif session["user_type"] == "organisation" %}
+
+                <!-- Organisation-specific fields -->
+                <div class="space-y-4">
+                    <!-- NAME -->
+                    <div class="border rounded-lg shadow-sm">
+                        <button type="button" onclick="toggleField('nameField')" 
+                            class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
+                            <span class="font-medium text-gray-700">Organisation Name</span>
+                            <span class="text-sm text-gray-500">{{ user.name }}</span>
+                        </button>
+                        <div id="nameField" class="hidden px-4 py-3 border-t">
+                            <form action="/edit_profile" method="POST" class="flex gap-2">
+                                <input type="hidden" name="field" value="name">
+                                <input type="text" name="value" value="{{ user.name }}" 
+                                    class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                                <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
+                            </form>
+                        </div>
                     </div>
+                    
+                    <!-- ADDRESS -->
+                    <div class="border rounded-lg shadow-sm">
+                        <button type="button" onclick="toggleField('addressField')" 
+                            class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
+                            <span class="font-medium text-gray-700">Address</span>
+                            <span class="text-sm text-gray-500">{{ user.address }}</span>
+                        </button>
+                        <div id="addressField" class="hidden px-4 py-3 border-t">
+                            <form action="/edit_profile" method="POST" class="flex gap-2">
+                                <input type="hidden" name="field" value="address">
+                                <input type="text" name="value" value="{{ user.address }}" 
+                                    class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500">
+                                <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- WEBSITE URL -->
+                    <div class="border rounded-lg shadow-sm">
+                        <button type="button" onclick="toggleField('websiteField')" 
+                            class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
+                            <span class="font-medium text-gray-700">Website URL</span>
+                            <span class="text-sm text-gray-500">{{ user.website_url }}</span>
+                        </button>
+                        <div id="websiteField" class="hidden px-4 py-3 border-t">
+                            <form action="/edit_profile" method="POST" class="flex gap-2">
+                                <input type="hidden" name="field" value="website_url">
+                                <input type="url" name="value" value="{{ user.website_url }}" 
+                                    class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500">
+                                <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="border rounded-lg shadow-sm">
+                        <button type="button" onclick="toggleField('orgBioField')" 
+                            class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
+                            <span class="font-medium text-gray-700">Organisation Description</span>
+                            <span class="text-sm text-gray-500">Click to edit</span>
+                        </button>
+                        <div id="orgBioField" class="hidden px-4 py-3 border-t">
+                            <form action="/edit_profile" method="POST" class="flex flex-col gap-2">
+                                <input type="hidden" name="field" value="bio">
+                                <textarea name="value" rows="4" 
+                                    class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 resize-none">{{ user.bio }}</textarea>
+                                <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- PASSWORD -->
+                    <div class="border rounded-lg shadow-sm">
+                        <button type="button" onclick="toggleField('orgPasswordField')" 
+                            class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
+                            <span class="font-medium text-gray-700">Password</span>
+                            <span class="text-sm text-gray-500">••••••</span>
+                        </button>
+                        <div id="orgPasswordField" class="hidden px-4 py-3 border-t">
+                            <form action="/edit_profile" method="POST" class="flex gap-2">
+                                <input type="hidden" name="field" value="password">
+                                <input type="password" name="value" placeholder="Enter new password"
+                                    class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required>
+                                <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
+                            </form>
+                        </div>
+                    </div>
+
                 </div>
 
-                <!-- PHONE -->
-                <div class="border rounded-lg shadow-sm">
-                    <button type="button" onclick="toggleField('phoneField')" 
-                        class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
-                        <span class="font-medium text-gray-700">Phone</span>
-                        <span class="text-sm text-gray-500">{{ user.phonenumber }}</span>
-                    </button>
-                    <div id="phoneField" class="hidden px-4 py-3 border-t">
-                        <form action="/edit_profile" method="POST" class="flex gap-2">
-                            <input type="hidden" name="field" value="phone">
-                            <input type="tel" name="value" value="{{ user.phone_num }}"
-                                class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500">
-                            <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- LOCATION -->
-                <div class="border rounded-lg shadow-sm">
-                    <button type="button" onclick="toggleField('locationField')" 
-                        class="w-full flex justify-between items-center px-4 py-3 bg-gray-100 hover:bg-gray-200 transition rounded-lg">
-                        <span class="font-medium text-gray-700">Location</span>
-                        <span class="text-sm text-gray-500">{{ user.location }}</span>
-                    </button>
-                    <div id="locationField" class="hidden px-4 py-3 border-t">
-                        <form action="/edit_profile" method="POST" class="flex gap-2">
-                            <input type="hidden" name="field" value="location">
-                            <input type="text" name="value" value="{{ user.location }}"
-                                class="flex-grow px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500">
-                            <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Save</button>
-                        </form>
-                    </div>
-                </div>
-
-            </div>
+            {% endif %}
         </div>
     </main>
-
+    
+    <!-- Skills Selection Modal -->
+    <div id="skills-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+            <h3 class="text-xl font-bold mb-4">Select Your Skills</h3>
+            <div class="h-64 overflow-y-auto space-y-2 mb-4 pr-2">
+                <!-- Dynamically generate skills list from the backend -->
+                {% for skill in user.all_skills %}
+                    <div class="skill-item px-4 py-2 border rounded-lg cursor-pointer transition"
+                        data-skill="{{ skill }}">
+                        {{ skill }}
+                    </div>
+                {% endfor %}
+            </div>
+            <button type="button" onclick="saveSkills()" 
+                class="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
+                Save Skills
+            </button>
+        </div>
+    </div>
+    
     <!-- Footer Section -->
     <footer class="bg-gray-800 text-white p-4 text-center mt-auto shadow-inner rounded-t-xl">
         <p>&copy; 2025 Volunteer Management System</p>
     </footer>
 
-    <!-- JavaScript to toggle visibility of input fields -->
+    <!-- JavaScript to handle UI interactions -->
     <script>
         /**
          * Toggles the visibility of a profile field's input form.
@@ -145,6 +303,83 @@
             const fieldDiv = document.getElementById(fieldId);
             fieldDiv.classList.toggle('hidden');
         }
+
+        const skillsModal = document.getElementById('skills-modal');
+        const selectedSkillsInput = document.getElementById('skills-input');
+        const selectedSkillsDisplay = document.getElementById('selected-skills');
+        const skillsForm = document.getElementById('skillsForm');
+        const skillItems = document.querySelectorAll('.skill-item');
+
+        /**
+         * Initializes the UI with pre-selected skills from the server.
+         */
+        function initializeSkills() {
+            // Get initial skills from the server-rendered display
+            const initialSkills = Array.from(selectedSkillsDisplay.querySelectorAll('span')).map(el => el.textContent);
+            
+            // Highlight the initial skills in the modal
+            skillItems.forEach(item => {
+                if (initialSkills.includes(item.dataset.skill)) {
+                    item.classList.add('bg-emerald-500', 'text-white');
+                }
+            });
+
+            // Set the initial value of the hidden input
+            selectedSkillsInput.value = initialSkills.join(',');
+        }
+        
+        /**
+         * Toggles the skills modal on and off.
+         */
+        function openSkillsModal() {
+            skillsModal.classList.remove('hidden');
+        }
+
+        /**
+         * Handles the selection/deselection of a skill.
+         * @param {HTMLElement} element The skill item div.
+         */
+        function selectSkill(element) {
+            element.classList.toggle('bg-emerald-500');
+            element.classList.toggle('text-white');
+        }
+
+        /**
+         * Updates the display of selected skills and submits the form.
+         */
+        function saveSkills() {
+            const selected = [];
+            document.querySelectorAll('.skill-item.bg-emerald-500').forEach(item => {
+                selected.push(item.dataset.skill);
+            });
+
+            // Update the hidden input and submit the form
+            selectedSkillsInput.value = selected.join(',');
+            skillsForm.submit();
+        }
+
+        /**
+         * Updates the display of selected skills.
+         * This function is now just for visual updating, as the form submission handles the backend logic.
+         * @param {string[]} skillsArray An array of selected skill names.
+         */
+        function updateSelectedSkills(skillsArray) {
+            selectedSkillsDisplay.innerHTML = '';
+            skillsArray.forEach(skill => {
+                const span = document.createElement('span');
+                span.className = 'bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded-full';
+                span.textContent = skill;
+                selectedSkillsDisplay.appendChild(span);
+            });
+        }
+
+        // Add click listeners to skill items
+        skillItems.forEach(item => {
+            item.addEventListener('click', () => selectSkill(item));
+        });
+
+        // Initialize skills on page load
+        document.addEventListener('DOMContentLoaded', initializeSkills);
     </script>
 </body>
 </html>

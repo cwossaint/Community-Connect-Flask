@@ -234,37 +234,96 @@ def login():
 
 @app.route('/edit_profile', methods=['GET', 'POST'])
 def edit_profile():
-    if 'user_id' not in session:
+    if 'user_id' not in session or 'user_type' not in session:
         return redirect('/login')
 
     user_id = session['user_id']
+    user_type = session['user_type']
     db = get_db()
 
     if request.method == 'POST':
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        location = request.form.get('location')
-        password = request.form.get('password')
+        field_to_update = request.form.get('field')
+        new_value = request.form.get('value')
 
-        if email:
-            print("email")
-            db.execute("UPDATE Volunteers SET Email = ? WHERE ID = ?", (email, session['user_id']))
-        if phone:
-            print("phone")
-            db.execute("UPDATE Volunteers SET PhoneNumber = ? WHERE ID = ?", (phone, session['user_id']))
-        if location:
-            print("location")
-            db.execute("UPDATE Volunteers SET Location = ? WHERE ID = ?", (location, session['user_id']))
-        if password:
-            print("password")
-            db.execute("UPDATE Volunteers SET Password = ? WHERE ID = ?", (password, session['user_id']))
+        if user_type == 'volunteer':
+            if field_to_update == 'email':
+                db.execute("UPDATE Volunteers SET Email = ? WHERE ID = ?", (new_value, user_id))
+            elif field_to_update == 'phone':
+                db.execute("UPDATE Volunteers SET PhoneNumber = ? WHERE ID = ?", (new_value, user_id))
+            elif field_to_update == 'location':
+                db.execute("UPDATE Volunteers SET Location = ? WHERE ID = ?", (new_value, user_id))
+            elif field_to_update == 'bio':
+                db.execute("UPDATE Volunteers SET Bio = ? WHERE ID = ?", (new_value, user_id))
+            elif field_to_update == 'skills':
+                # The skills are in a separate table. We need to clear existing skills and add new ones.
+                # Assuming a junction table 'VolunteerSkills' and a 'Skills' table.
+                skills = new_value.split(',') if new_value else []
+
+                # First, delete all existing skills for the volunteer
+                db.execute("DELETE FROM VolunteerSkills WHERE VolunteerID = ?", (user_id,))
+                
+                # Then, insert the new skills
+                for skill_name in skills:
+                    # Find the SkillID from the Skills table
+                    cur = db.execute("SELECT ID FROM Skills WHERE Name = ?", (skill_name,))
+                    skill = cur.fetchone()
+                    if skill:
+                        skill_id = skill[0]
+                        db.execute("INSERT INTO VolunteerSkills (VolunteerID, SkillID) VALUES (?, ?)", (user_id, skill_id))
+            elif field_to_update == 'password':
+                # Note: In a real app, you would hash the password here
+                db.execute("UPDATE Volunteers SET Password = ? WHERE ID = ?", (new_value, user_id))
+
+        elif user_type == 'organisation':
+            if field_to_update == 'name':
+                db.execute("UPDATE Organisations SET Name = ? WHERE ID = ?", (new_value, user_id))
+            elif field_to_update == 'address':
+                db.execute("UPDATE Organisations SET Address = ? WHERE ID = ?", (new_value, user_id))
+            elif field_to_update == 'website_url':
+                db.execute("UPDATE Organisations SET WebsiteURL = ? WHERE ID = ?", (new_value, user_id))
+            elif field_to_update == 'bio':
+                # Correctly using the 'Description' column name for organisation bio
+                db.execute("UPDATE Organisations SET Description = ? WHERE ID = ?", (new_value, user_id))
+            elif field_to_update == 'password':
+                # Note: In a real app, you would hash the password here
+                db.execute("UPDATE Organisations SET Password = ? WHERE ID = ?", (new_value, user_id))
 
         db.commit()
-        return redirect('/edit_profile')  # refresh the page to show updates
+        return redirect('/edit_profile')
 
-    # Get updated user info for rendering
-    cur = db.execute("SELECT Password, Email, PhoneNumber, Location FROM Volunteers WHERE ID = ?", (session['user_id'],))
-    user = cur.fetchone()
+    # GET request: Get user info for rendering the page
+    user = {}
+    if user_type == 'volunteer':
+        # Retrieve volunteer's basic info
+        cur = db.execute("SELECT Email, PhoneNumber, Location, Bio FROM Volunteers WHERE ID = ?", (user_id,))
+        volunteer_data = cur.fetchone()
+        if not volunteer_data:
+            return "Volunteer not found.", 404
+        user['email'], user['phone_number'], user['location'], user['bio'] = volunteer_data
+
+        # Retrieve volunteer's skills from the separate table
+        cur = db.execute("""
+            SELECT T2.Name
+            FROM VolunteerSkills AS T1
+            JOIN Skills AS T2 ON T1.SkillID = T2.ID
+            WHERE T1.VolunteerID = ?
+        """, (user_id,))
+        user['skills'] = [row[0] for row in cur.fetchall()]
+
+        # Retrieve all available skills for the form
+        cur = db.execute("SELECT Name FROM Skills")
+        user['all_skills'] = [row[0] for row in cur.fetchall()]
+
+    elif user_type == 'organisation':
+        # Retrieve organisation's info
+        cur = db.execute("SELECT Name, Address, WebsiteURL, Description FROM Organisations WHERE ID = ?", (user_id,))
+        org_data = cur.fetchone()
+        if not org_data:
+            return "Organisation not found.", 404
+        user['name'], user['address'], user['website_url'], user['bio'] = org_data
+    
+    # Store user_type in the dictionary to pass to the template for conditional rendering
+    user['user_type'] = user_type
 
     return render_template('edit_profile.html', user=user)
 
@@ -310,7 +369,7 @@ def view_signups():
             JOIN EventRoles r ON s.roleID = r.id
             JOIN Events e ON r.eventID = e.id
             JOIN Volunteers v ON s.volunteerID = v.id
-            WHERE e.organisationID = ? AND s.status = 'Pending'
+            WHERE e.organisationID = ?
             ORDER BY e.Date ASC;
         """
         signups = db.execute(query, (org_id,)).fetchall()
@@ -347,9 +406,6 @@ def update_signup_status():
         return jsonify({'success': True, 'message': f'Signup {signup_id} updated to {status}'})
     except sqlite3.Error as e:
         return jsonify({'error': str(e)}), 500
-
-
-
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
