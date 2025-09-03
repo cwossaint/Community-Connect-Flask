@@ -141,7 +141,18 @@ def get_event_roles():
             if signup_status:
                 role["signup_status"] = signup_status["Status"]
         
-        return jsonify(roles)
+        # --- NEW: Fetch volunteer's skills to pass to the frontend for filtering ---
+        volunteer_skills_cur = db.execute("""
+            SELECT s.Name FROM VolunteerSkills vs
+            JOIN Skills s ON vs.SkillID = s.Id
+            WHERE vs.VolunteerID = ?
+        """, (volunteer_id,))
+        volunteer_skills = [s["Name"] for s in volunteer_skills_cur.fetchall()]
+        
+        return jsonify({
+            "roles": roles,
+            "volunteer_skills": volunteer_skills
+        })
 
     return ("Unauthorized", 401)
 
@@ -179,17 +190,38 @@ def register_for_role():
 
     db = get_db()
     role_id = request.form["role_id"]
+    volunteer_id = session["user_id"]
 
-    cur = db.execute(
+    # --- NEW: Check if the volunteer has the required skill for the role ---
+    role_skill_cur = db.execute("""
+        SELECT s.Name FROM EventRoles er
+        LEFT JOIN Skills s ON er.SkillID = s.Id
+        WHERE er.ID = ?
+    """, (role_id,))
+    required_skill = role_skill_cur.fetchone()
+
+    # If the role has a required skill, check if the volunteer has it
+    if required_skill and required_skill["Name"]:
+        volunteer_skill_cur = db.execute("""
+            SELECT s.Name FROM VolunteerSkills vs
+            JOIN Skills s ON vs.SkillID = s.Id
+            WHERE vs.VolunteerID = ? AND s.Name = ?
+        """, (volunteer_id, required_skill["Name"]))
+        
+        if not volunteer_skill_cur.fetchone():
+            return "You do not have the required skills for this role.", 400
+
+    # Check if the volunteer has already signed up
+    signup_cur = db.execute(
         "SELECT * FROM Signups WHERE VolunteerID = ? AND RoleID = ?",
-        (session["user_id"], role_id),
+        (volunteer_id, role_id),
     )
-    if cur.fetchone():
+    if signup_cur.fetchone():
         return "Already signed up", 400
 
     db.execute(
         "INSERT INTO Signups (VolunteerID, RoleID, Status) VALUES (?, ?, 'Pending')",
-        (session["user_id"], role_id),
+        (volunteer_id, role_id),
     )
     db.commit()
     return "OK", 200
@@ -269,6 +301,17 @@ def edit_profile():
     if request.method == 'POST':
         field_to_update = request.form.get('field')
         new_value = request.form.get('value')
+        
+        # Helper function to get or create a skill ID
+        def get_or_create_skill_id(skill_name):
+            cur = db.execute("SELECT ID FROM Skills WHERE Name = ?", (skill_name,))
+            skill = cur.fetchone()
+            if skill:
+                return skill['ID']
+            else:
+                cur = db.execute("INSERT INTO Skills (Name) VALUES (?)", (skill_name,))
+                db.commit()
+                return cur.lastrowid
 
         if user_type == 'volunteer':
             if field_to_update == 'email':
@@ -280,20 +323,16 @@ def edit_profile():
             elif field_to_update == 'bio':
                 db.execute("UPDATE Volunteers SET Bio = ? WHERE ID = ?", (new_value, user_id))
             elif field_to_update == 'skills':
-                # The skills are in a separate table. We need to clear existing skills and add new ones.
-                # Assuming a junction table 'VolunteerSkills' and a 'Skills' table.
-                skills = new_value.split(',') if new_value else []
+                # Split the skills string from the form, handling empty values
+                skills = [s.strip() for s in new_value.split(',') if s.strip()]
 
                 # First, delete all existing skills for the volunteer
                 db.execute("DELETE FROM VolunteerSkills WHERE VolunteerID = ?", (user_id,))
                 
                 # Then, insert the new skills
                 for skill_name in skills:
-                    # Find the SkillID from the Skills table
-                    cur = db.execute("SELECT ID FROM Skills WHERE Name = ?", (skill_name,))
-                    skill = cur.fetchone()
-                    if skill:
-                        skill_id = skill[0]
+                    skill_id = get_or_create_skill_id(skill_name)
+                    if skill_id:
                         db.execute("INSERT INTO VolunteerSkills (VolunteerID, SkillID) VALUES (?, ?)", (user_id, skill_id))
             elif field_to_update == 'password':
                 # Note: In a real app, you would hash the password here

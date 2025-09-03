@@ -272,14 +272,8 @@
     <div id="skills-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
             <h3 class="text-xl font-bold mb-4">Select Your Skills</h3>
-            <div class="h-64 overflow-y-auto space-y-2 mb-4 pr-2">
-                <!-- Dynamically generate skills list from the backend -->
-                {% for skill in user.all_skills %}
-                    <div class="skill-item px-4 py-2 border rounded-lg cursor-pointer transition"
-                        data-skill="{{ skill }}">
-                        {{ skill }}
-                    </div>
-                {% endfor %}
+            <div id="all-skills-container" class="h-64 overflow-y-auto space-y-2 mb-4 pr-2">
+                <!-- Skills will be dynamically populated here by JavaScript -->
             </div>
             <button type="button" onclick="saveSkills()" 
                 class="w-full bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
@@ -305,43 +299,70 @@
         }
 
         const skillsModal = document.getElementById('skills-modal');
+        const allSkillsContainer = document.getElementById('all-skills-container');
         const selectedSkillsInput = document.getElementById('skills-input');
-        const selectedSkillsDisplay = document.getElementById('selected-skills');
         const skillsForm = document.getElementById('skillsForm');
-        const skillItems = document.querySelectorAll('.skill-item');
+        
+        let allSkills = [];
+        let userSkills = [];
 
         /**
          * Initializes the UI with pre-selected skills from the server.
          */
         function initializeSkills() {
-            // Get initial skills from the server-rendered display
-            const initialSkills = Array.from(selectedSkillsDisplay.querySelectorAll('span')).map(el => el.textContent);
-            
-            // Highlight the initial skills in the modal
-            skillItems.forEach(item => {
-                if (initialSkills.includes(item.dataset.skill)) {
-                    item.classList.add('bg-emerald-500', 'text-white');
-                }
-            });
-
-            // Set the initial value of the hidden input
-            selectedSkillsInput.value = initialSkills.join(',');
+            // This is now handled by the Python loop, we just need to read the initial skills
+            const initialSkillsSpans = document.getElementById('selected-skills').querySelectorAll('span');
+            userSkills = Array.from(initialSkillsSpans).map(el => el.textContent);
         }
         
         /**
-         * Toggles the skills modal on and off.
+         * Toggles the skills modal on and off and fetches all skills.
          */
-        function openSkillsModal() {
+        async function openSkillsModal() {
+            if (allSkills.length === 0) {
+                try {
+                    const response = await fetch('/get_skills');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch skills');
+                    }
+                    allSkills = await response.json();
+                    renderAllSkills();
+                } catch (error) {
+                    console.error('Error fetching skills:', error);
+                    alert('Could not load skills. Please try again.');
+                    return;
+                }
+            }
             skillsModal.classList.remove('hidden');
+            skillsModal.classList.add('flex');
         }
 
         /**
-         * Handles the selection/deselection of a skill.
-         * @param {HTMLElement} element The skill item div.
+         * Renders all skills in the modal, marking the user's skills as selected.
          */
-        function selectSkill(element) {
+        function renderAllSkills() {
+            allSkillsContainer.innerHTML = '';
+            allSkills.forEach(skill => {
+                const isSelected = userSkills.includes(skill.name);
+                const skillDiv = document.createElement('div');
+                skillDiv.className = `skill-item px-4 py-2 border rounded-lg cursor-pointer transition ${isSelected ? 'bg-emerald-500 text-white' : 'hover:bg-gray-100'}`;
+                skillDiv.dataset.skillName = skill.name;
+                skillDiv.dataset.skillId = skill.id;
+                skillDiv.textContent = skill.name;
+                skillDiv.addEventListener('click', () => {
+                    toggleSkillSelection(skillDiv);
+                });
+                allSkillsContainer.appendChild(skillDiv);
+            });
+        }
+        
+        /**
+         * Toggles the selection of a skill item.
+         */
+        function toggleSkillSelection(element) {
             element.classList.toggle('bg-emerald-500');
             element.classList.toggle('text-white');
+            element.classList.toggle('hover:bg-gray-100');
         }
 
         /**
@@ -350,32 +371,20 @@
         function saveSkills() {
             const selected = [];
             document.querySelectorAll('.skill-item.bg-emerald-500').forEach(item => {
-                selected.push(item.dataset.skill);
+                selected.push(item.dataset.skillName);
             });
-
+            
             // Update the hidden input and submit the form
             selectedSkillsInput.value = selected.join(',');
             skillsForm.submit();
         }
 
-        /**
-         * Updates the display of selected skills.
-         * This function is now just for visual updating, as the form submission handles the backend logic.
-         * @param {string[]} skillsArray An array of selected skill names.
-         */
-        function updateSelectedSkills(skillsArray) {
-            selectedSkillsDisplay.innerHTML = '';
-            skillsArray.forEach(skill => {
-                const span = document.createElement('span');
-                span.className = 'bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded-full';
-                span.textContent = skill;
-                selectedSkillsDisplay.appendChild(span);
-            });
-        }
-
-        // Add click listeners to skill items
-        skillItems.forEach(item => {
-            item.addEventListener('click', () => selectSkill(item));
+        // Add a click listener to close the modal if the user clicks outside
+        skillsModal.addEventListener('click', (event) => {
+            if (event.target === skillsModal) {
+                skillsModal.classList.add('hidden');
+                skillsModal.classList.remove('flex');
+            }
         });
 
         // Initialize skills on page load

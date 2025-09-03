@@ -117,6 +117,11 @@
 
                 <!-- Volunteer-specific view -->
                 {% else %}
+                    <div class="text-center mb-6">
+                        <button id="toggle-events-btn" class="bg-gray-800 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-700 transition-colors shadow-md">
+                            Filter by My Skills
+                        </button>
+                    </div>
                     <!-- Events Grid with Jinja2 Loop for Volunteers -->
                     <div id="events-grid-volunteer" class="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {% for event in events %}
@@ -172,7 +177,10 @@
             const userType = "{{ session.get('user_type', 'none') }}"; // Get user type from Flask session
 
             const addEventBtn = document.getElementById('add-event-btn');
+            const toggleEventsBtn = document.getElementById('toggle-events-btn');
 
+            let isFilteredView = false;
+            
             // Function to show the main modal
             function showModal() {
                 modalBackdrop.classList.remove('hidden', 'opacity-0');
@@ -276,6 +284,7 @@
                                         <div class="bg-gray-100 p-4 rounded-lg shadow-inner">
                                             <h5 class="font-semibold text-gray-900">${role.name}</h5>
                                             <p class="text-sm text-gray-600">${role.description}</p>
+                                            ${role.required_skill_name ? `<p class="text-xs text-gray-500 mt-1">Required Skill: ${role.required_skill_name}</p>` : ''}
                                         </div>
                                     `;
                                     rolesList.innerHTML += roleHtml;
@@ -308,7 +317,6 @@
                 const eventName = this.getAttribute('data-event-name');
                 const eventDescription = this.getAttribute('data-event-description');
                 const eventDate = this.getAttribute('data-event-date');
-                
                 if (userType === 'organisation') {
                     // Organization's event management pop-up
                     modalTitle.textContent = `Manage ${eventName}`;
@@ -366,8 +374,18 @@
                     });
                     
                     // Add event listener for the "Add Event Role" button
-                    document.getElementById('add-role-btn').addEventListener('click', () => {
+                    document.getElementById('add-role-btn').addEventListener('click', async () => {
                         modalTitle.textContent = `Add Role to ${eventName}`;
+                        
+                        // Fetch all available skills from the database
+                        const skillsResponse = await fetch('/get_skills');
+                        const skills = await skillsResponse.json();
+                        
+                        let skillsOptionsHtml = '<option value="">(No required skill)</option>';
+                        skills.forEach(skill => {
+                            skillsOptionsHtml += `<option value="${skill.id}">${skill.name}</option>`;
+                        });
+
                         modalBody.innerHTML = `
                             <form id="add-role-form" class="space-y-4">
                                 <input type="hidden" name="event_id" value="${eventId}">
@@ -379,11 +397,18 @@
                                     <label for="role_description" class="block text-gray-700 font-medium mb-1">Role Description</label>
                                     <textarea id="role_description" name="role_description" rows="3" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500" required></textarea>
                                 </div>
+                                <div>
+                                    <label for="skill_id" class="block text-gray-700 font-medium mb-1">Required Skill</label>
+                                    <select id="skill_id" name="skill_id" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500">
+                                        ${skillsOptionsHtml}
+                                    </select>
+                                </div>
                                 <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-emerald-700 transition-colors shadow-md">
                                     Add Role
                                 </button>
                             </form>
                         `;
+
                         // Add event listener for the new form
                         document.getElementById('add-role-form').addEventListener('submit', async (e) => {
                             e.preventDefault();
@@ -432,12 +457,19 @@
                     try {
                         const rolesResponse = await fetch(`/get_event_roles?event_id=${eventId}`);
                         if (rolesResponse.ok) {
-                            const roles = await rolesResponse.json();
+                            // Extract roles and volunteer skills from the new JSON payload
+                            const data = await rolesResponse.json();
+                            const roles = data.roles;
+                            const volunteerSkills = data.volunteer_skills;
+                            
                             const rolesList = document.getElementById('roles-list');
                             rolesList.innerHTML = '';
                             if (roles.length > 0) {
                                 roles.forEach(role => {
                                     let actionButton;
+                                    
+                                    // Check if the volunteer has the required skill for this role
+                                    const hasRequiredSkills = !role.required_skill_name || volunteerSkills.includes(role.required_skill_name);
 
                                     // Check the volunteer's signup status for this role
                                     if (role.signup_status === 'Pending') {
@@ -446,6 +478,8 @@
                                         actionButton = `<span class="px-4 py-2 rounded-lg text-sm bg-green-600 text-white cursor-not-allowed">Confirmed</span>`;
                                     } else if (role.signup_status === 'Rejected') {
                                         actionButton = `<span class="px-4 py-2 rounded-lg text-sm bg-red-500 text-white cursor-not-allowed">Rejected</span>`;
+                                    } else if (!hasRequiredSkills) {
+                                        actionButton = `<span class="px-4 py-2 rounded-lg text-sm bg-gray-400 text-white cursor-not-allowed">Skills Needed</span>`;
                                     } else {
                                         actionButton = `<button class="register-role-btn bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition-colors" data-role-id="${role.id}" data-role-name="${role.name}">Sign Up</button>`;
                                     }
@@ -455,6 +489,7 @@
                                             <div>
                                                 <h5 class="font-semibold text-gray-900">${role.name}</h5>
                                                 <p class="text-sm text-gray-600">${role.description}</p>
+                                                ${role.required_skill_name ? `<p class="text-xs text-gray-500 mt-1">Required Skill: ${role.required_skill_name}</p>` : ''}
                                             </div>
                                             ${actionButton}
                                         </div>
@@ -480,7 +515,9 @@
                                                 showNotification(`Signed up for "${roleName}"!`);
                                                 hideModal();
                                             } else {
-                                                console.error('Registration failed.');
+                                                const errorText = await response.text();
+                                                showNotification(errorText); // Display error from backend
+                                                console.error('Registration failed:', errorText);
                                             }
                                         } catch (error) {
                                             console.error('Error:', error);
@@ -585,6 +622,52 @@
                             console.error('Error:', error);
                         }
                     });
+                });
+            }
+
+            // New logic to handle the event filtering for volunteers
+            if (toggleEventsBtn) {
+                toggleEventsBtn.addEventListener('click', async () => {
+                    isFilteredView = !isFilteredView; // Toggle the view state
+                    
+                    const eventCards = document.querySelectorAll('#events-grid-volunteer .event-card');
+                    toggleEventsBtn.textContent = isFilteredView ? 'Loading...' : 'Filter by My Skills';
+                    toggleEventsBtn.disabled = true;
+
+                    for (const card of eventCards) {
+                        if (isFilteredView) {
+                            // Fetch skills for this specific event to determine if it should be shown
+                            const eventId = card.dataset.eventId;
+                            try {
+                                const response = await fetch(`/get_event_roles?event_id=${eventId}`);
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    const volunteerSkills = data.volunteer_skills;
+                                    const hasMatchingRole = data.roles.some(role => {
+                                        // Check if the role has a required skill and if the volunteer has it
+                                        return role.required_skill_name && volunteerSkills.includes(role.required_skill_name);
+                                    });
+
+                                    // If no matching roles, hide the card
+                                    if (!hasMatchingRole) {
+                                        card.style.display = 'none';
+                                    } else {
+                                        card.style.display = ''; // Show the card if it has a matching role
+                                    }
+                                }
+                            } catch (error) {
+                                console.error(`Error fetching skills for event ${eventId}:`, error);
+                                card.style.display = 'none'; // Hide on error
+                            }
+                        } else {
+                            // Show all events if the filter is off
+                            card.style.display = '';
+                        }
+                    }
+
+                    // Update button text and state after all cards have been processed
+                    toggleEventsBtn.textContent = isFilteredView ? 'Show All Events' : 'Filter by My Skills';
+                    toggleEventsBtn.disabled = false;
                 });
             }
 
