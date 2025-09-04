@@ -29,9 +29,12 @@ def close_connection(exception):
 def index():
     return render_template("index.html")
 
+#///////////////////////////////////////////////////////////////ORGANISATIONS VIEW///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 @app.route("/organisations")
 def organisations():
     db = get_db()
+    
     cur = db.execute(
         """
         SELECT * FROM Organisations 
@@ -39,8 +42,23 @@ def organisations():
         """
     )
     organisations = cur.fetchall()
-    return render_template("organisations.html", organisations=organisations)
 
+    cur_counts = db.execute(
+        """
+        SELECT 
+            o.id, 
+            COUNT(e.id) AS event_count 
+        FROM Organisations o
+        LEFT JOIN Events e ON o.id = e.OrganisationID
+        GROUP BY o.id, o.Name
+        ORDER BY o.Name ASC
+        """
+    )
+    event_counts = cur_counts.fetchall()
+    
+    event_counts_dict = {row['id']: row['event_count'] for row in event_counts}
+
+    return render_template("organisations.html", organisations=organisations, event_counts=event_counts_dict)
 #////////////////////////////////////////////////////////////////////EVENTS PAGE///////////////////////////////////////////////////////////////////////////////////
 
 @app.route("/events", methods=["GET", "POST"])
@@ -65,7 +83,8 @@ def events():
 
     cur = db.execute(
         """
-        SELECT * FROM Events 
+        SELECT * FROM Events
+        GROUP BY OrganisationID 
         ORDER BY Date ASC
         """
     )
@@ -414,7 +433,6 @@ def edit_profile():
         field_to_update = request.form.get('field')
         new_value = request.form.get('value')
         
-        # Helper function to get or create a skill ID
         def get_or_create_skill_id(skill_name):
             cur = db.execute(
                 """
@@ -685,7 +703,6 @@ def volunteers():
 def view_volunteer(volunteer_id):
     db = get_db()
 
-    # 1. Fetch volunteer's primary information
     volunteer_cur = db.execute(
         """
         SELECT 
@@ -778,6 +795,8 @@ def update_signup_status():
 def logout():
     session.clear()
     return render_template('index.html')
+
+#/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 # --- RUN APP ---
 if __name__ == "__main__":
